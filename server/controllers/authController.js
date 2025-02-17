@@ -4,13 +4,7 @@ import crypto from 'crypto';
 import jwt from "jsonwebtoken";
 import User from '../models/User.js';
 
-const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID || "902643667030-1l6l00sgj4lp7k7voht4rep5rr7svdfu.apps.googleusercontent.com");
-
-// Function to generate a random discount code
-const generateDiscountCode = () => {
-  return `GOOGLE-${crypto.randomBytes(4).toString("hex").toUpperCase()}`;
-};
-
+const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 // Google sign-in handler
 export const googleSignin = async (req, res) => {
   console.log("Received Google Sign-In request:", req.body);
@@ -155,4 +149,4 @@ export const twitterSignin = async (req, res) => {
     console.error("Twitter sign-in error:", error);
     res.status(500).json({ success: false, message: "Twitter sign-in failed" });
   }
-};
+};  

@@ -34,7 +34,7 @@ const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
     // origin: "*",
-    origin: ['http://localhost:5173', "https://localhost:5173"], // Your frontend's origin
+    origin: "process.env.REACT_APP", // Your frontend's origin
     methods: ["GET", "POST", 'PUT', 'DELETE'],
     credentials: true,
   },
@@ -42,7 +42,7 @@ const io = new Server(server, {
 
 app.use(cors({
   // origin: "*",
-  origin: ['http://localhost:5173', "https://localhost:5173"],
+  origin: 'process.env.REACT_APP',
   methods: ["GET", "POST", 'PUT', 'DELETE'],
   credentials: true,
 }));
@@ -68,8 +68,8 @@ app.use(passport.session());
 
 // Configure Passport strategies
 // passport.use(new GoogleStrategy({
-//   clientID: process.env.GOOGLE_CLIENT_ID || "902643667030-1l6l00sgj4lp7k7voht4rep5rr7svdfu.apps.googleusercontent.com",
-//   clientSecret: process.env.GOOGLE_CLIENT_SECRET || "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",
+//   clientID: process.env.GOOGLE_CLIENT_ID,
+//   clientSecret: process.env.GOOGLE_CLIENT_SECRET,
 //   callbackURL: "http://localhost:4000/auth/google/callback",
 //   scope: ["profile", "email", "https://www.googleapis.com/auth/user.phonenumbers.read"],
 //   passReqToCallback: true,
