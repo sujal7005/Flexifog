@@ -1,5 +1,5 @@
 import { Router } from 'express'
-import { getProducts, createProducts, updateProduct, deleteProduct } from '../controllers/productController.js';
+import { getProducts, createProducts, updateProduct, deleteProduct, downloadQuotation } from '../controllers/productController.js';
 import multer from "multer";
 import path from 'path';
 import fs from 'fs';
@@ -79,6 +79,8 @@ router.use((err, req, res, next) => {
     res.status(500).json({ error: err.message });
   }
 });
+
+router.get('/download-quotation/:id', downloadQuotation);
 
 
 export default router;

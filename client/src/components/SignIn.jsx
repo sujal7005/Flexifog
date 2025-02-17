@@ -1,8 +1,9 @@
 // src/components/SignIn.jsx
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { GoogleLogin } from '@react-oauth/google';
-import { FaTwitter } from 'react-icons/fa';
+import { GoogleOAuthProvider, GoogleLogin } from '@react-oauth/google';
+import FacebookLogin from "@greatsumini/react-facebook-login";
+import { FaFacebook, FaTwitter } from "react-icons/fa";
 import axios from 'axios';
 
 const SignIn = () => {
@@ -32,6 +33,18 @@ const SignIn = () => {
     }
   }, []);
 
+  useEffect(() => {
+    google.accounts.id.initialize({
+      client_id: "902643667030-1l6l00sgj4lp7k7voht4rep5rr7svdfu.apps.googleusercontent.com",
+      callback: handleGoogleLoginSuccess,
+    });
+  
+    google.accounts.id.renderButton(
+      document.getElementById("google-login-btn"), 
+      { theme: "outline", size: "large" }
+    );
+  }, []);
+
   const validateEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
   const validatePhoneNumber = (number) => /^\+91[0-9]{10}$/.test(number);
@@ -39,19 +52,19 @@ const SignIn = () => {
   const handleRequestOTP = async (e) => {
     e.preventDefault();
     try {
-        console.log("Requesting OTP for email:", resetEmail);
-        const data = resetEmail ? { email: resetEmail } : { phone: resetPhone };
-        const response = await axios.post('http://localhost:4000/api/forgot-password/request-otp', data);
-        console.log("OTP Response:", response.data);  
-        if (response.data.success) {
-            setStep(2);
-            setResetMessage('OTP sent to your ' + (resetEmail ? 'email' : 'phone number') + '.');
-        } else {
-            setError(response.data.message || 'Failed to send OTP.');
-        }
+      console.log("Requesting OTP for email:", resetEmail);
+      const data = resetEmail ? { email: resetEmail } : { phone: resetPhone };
+      const response = await axios.post('http://localhost:4000/api/forgot-password/request-otp', data);
+      console.log("OTP Response:", response.data);
+      if (response.data.success) {
+        setStep(2);
+        setResetMessage('OTP sent to your ' + (resetEmail ? 'email' : 'phone number') + '.');
+      } else {
+        setError(response.data.message || 'Failed to send OTP.');
+      }
     } catch (error) {
       console.error("Error details:", error.response?.data || error.message);
-        setError(error.response?.data?.message || 'An error occurred while requesting OTP.');
+      setError(error.response?.data?.message || 'An error occurred while requesting OTP.');
     }
   };
 
@@ -75,22 +88,22 @@ const SignIn = () => {
   const handleResetPassword = async (e) => {
     e.preventDefault();
     try {
-        const data = resetEmail
-            ? { email: resetEmail, newPassword }
-            : { phone: resetPhone, newPassword };
+      const data = resetEmail
+        ? { email: resetEmail, newPassword }
+        : { phone: resetPhone, newPassword };
 
-        const response = await axios.post('http://localhost:4000/api/forgot-password/reset-password', data);
+      const response = await axios.post('http://localhost:4000/api/forgot-password/reset-password', data);
 
-        if (response.data.success) {
-            setResetMessage('Password has been reset. Please login.');
-            setIsForgotPassword(false);
-            setStep(1);
-        } else {
-            setError(response.data.message || 'Failed to reset password.');
-        }
+      if (response.data.success) {
+        setResetMessage('Password has been reset. Please login.');
+        setIsForgotPassword(false);
+        setStep(1);
+      } else {
+        setError(response.data.message || 'Failed to reset password.');
+      }
     } catch (error) {
-        console.error(error);
-        setError('An error occurred while resetting the password.');
+      console.error(error);
+      setError('An error occurred while resetting the password.');
     }
   };
 
@@ -138,29 +151,65 @@ const SignIn = () => {
 
   // Google login success handler
   const handleGoogleLoginSuccess = async (response) => {
-    const { credential } = response;
     console.log("Google response:", response);
+    const { credential } = response;
+    if (!credential) {
+      console.error("No credential received!");
+      return;
+    }
+
     try {
-      const res = await axios.post('http://localhost:4000/api/google-signin', { credential });
-      console.log("Backend response:", res.data); 
-      if (res.data.success) {
-        localStorage.setItem('user', JSON.stringify(res.data.user));
-        setUserId(res.data.user._id);
-        navigate('/profile');
-      } else {
-        setError(res.data.message || 'Google Sign-In failed');
-      }
+      // Fetch the access token from Google
+      const tokenClient = google.accounts.oauth2.initTokenClient({
+        client_id: "902643667030-1l6l00sgj4lp7k7voht4rep5rr7svdfu.apps.googleusercontent.com",
+        scope: "profile email https://www.googleapis.com/auth/user.phonenumbers.read",
+        callback: async (tokenResponse) => {
+          console.log("Access Token:", tokenResponse.access_token);
+
+          // Now send both ID token and access token to the backend
+          const res = await fetch("http://localhost:4000/api/google-signin", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              idToken: credential,       // ✅ Google ID token
+              accessToken: tokenResponse.access_token, // ✅ Access token for People API
+            }),
+          });
+
+          const data = await res.json();
+          console.log("Backend response:", data);
+          if (data.success) {
+            localStorage.setItem('user', JSON.stringify(data.user));
+            setUserId(data.user._id);
+            navigate('/profile');
+          } else {
+            setError(data.message || 'Google Sign-In failed');
+          }
+        },
+      });
+
+      tokenClient.requestAccessToken(); // 🔥 Request access token
+
     } catch (err) {
-      setError('An error occurred during Google login');
+      setError(err.response?.data?.message || "An error occurred during Google login");
       console.error('Error during Google login:', err);
     }
   };
 
   // Facebook login success handler
   const handleFacebookLoginSuccess = async (response) => {
+    console.log("Facebook login response:", response);
+
+    if (!response || !response.accessToken) {
+      console.error("No access token received");
+      setError("Facebook login failed. Please try again.");
+      return;
+    }
+
     const { accessToken } = response;
     try {
       const res = await axios.post('http://localhost:4000/api/facebook-signin', { accessToken });
+
       if (res.data.success) {
         localStorage.setItem('user', JSON.stringify(res.data.user));
         setUserId(res.data.user._id);
@@ -170,12 +219,22 @@ const SignIn = () => {
       }
     } catch (err) {
       setError('An error occurred during Facebook login');
+      console.error('Error during FaceBook login:', err);
     }
   };
 
   // Twitter login success handler
   const handleTwitterLoginSuccess = async (response) => {
+    console.log("Twitter login response:", response);
+
     const { oauth_token, oauth_token_secret } = response;
+
+    if (!oauth_token || !oauth_token_secret) {
+      console.error("Missing OAuth tokens");
+      setError("Twitter authentication failed. Missing OAuth tokens.");
+      return;
+    }
+
     try {
       const response = await axios.post('http://localhost:4000/api/twitter-signin', { oauth_token, oauth_token_secret });
       if (response.data.url) {
@@ -186,6 +245,7 @@ const SignIn = () => {
       }
     } catch (err) {
       setError('An error occurred during Twitter login');
+      console.error('Error during Twitter login:', err);
     }
   };
 
@@ -259,154 +319,180 @@ const SignIn = () => {
           <button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-2 rounded">
             {isSignUp ? 'Sign Up' : 'Login'}
           </button>
-            <div className="mt-6 text-center">
-              <p className="text-gray-400">Or login with</p>
+          <div className="mt-6 text-center">
+            <p className="text-gray-400">Or login with</p>
 
-              {/* Google Login */}
-              <GoogleLogin
-                clientId="863030671533-jfc601o3jbou0dnsu9obvasrq2i7onlm.apps.googleusercontent.com"
-                buttonText="Login with Google"
-                onSuccess={handleGoogleLoginSuccess}
-                onFailure={() => setError('Google Login Failed')}
-                className="my-2"
-              />
-
-              {/* Facebook Login */}
-              {/* <FacebookLogin
-                appId="YOUR_FACEBOOK_APP_ID"
-                autoLoad={false}
-                fields="name,email,picture"
-                callback={handleFacebookLoginSuccess}
-                cssClass="my-2 w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700"
-                icon="fa-facebook"
-              /> */}
-
-              {/* Twitter Login */}
-              <button
-                onClick={handleTwitterLoginSuccess}
-                className="flex items-center justify-center w-full px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white font-bold rounded"
-              >
-                <FaTwitter className="mr-2" /> Login with Twitter
-              </button>
-            </div>
-        </form>
-        ) : (
-          <form 
-            onSubmit={step === 1 ? handleRequestOTP : step === 2 ? handleVerifyOTP : handleResetPassword}
-            className="space-y-4 bg-gray-800 p-6 rounded shadow-lg"
-          >
-            {step === 1 && (
-              <>
-                <div className="mb-4">
-                  <label className="text-gray-300">Select OTP Delivery Method:</label>
-                  <div className="flex items-center space-x-4">
-                    <label className="text-gray-300">
-                      <input
-                        type="radio"
-                        name="otpMethod"
-                        value="email"
-                        checked={otpMethod === 'email'}
-                        onChange={() => setOtpMethod('email')}
-                        className="mr-2"
-                      />
-                      Email
-                    </label>
-                    <label className="text-gray-300">
-                      <input
-                        type="radio"
-                        name="otpMethod"
-                        value="phone"
-                        checked={otpMethod === 'phone'}
-                        onChange={() => setOtpMethod('phone')}
-                        className="mr-2"
-                      />
-                      Phone
-                    </label>
-                  </div>
-                </div>
-
-                {otpMethod === 'email' && (
-                  <input 
-                    type="email"
-                    placeholder="Enter Email"
-                    value={resetEmail}
-                    onChange={(e) => setResetEmail(e.target.value)} 
-                    required
-                    className="w-full px-4 py-2 bg-gray-700 text-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  />
-                )}
-                {otpMethod === 'phone' && (
-                  <input
-                    type="text"
-                    placeholder="Enter Phone Number (+91)"
-                    value={resetPhone}
-                    onChange={(e) => setResetPhone(e.target.value)}
-                    className="w-full px-4 py-2 bg-gray-700 text-gray-300 rounded focus:outline-none"
-                  />
-                )}
-              </>
-            )}
-            {step === 2 && (
-              <input 
-                type="text" 
-                placeholder="Enter OTP" 
-                value={otp} 
-                onChange={(e) => setOtp(e.target.value)} 
-                required
-                className="w-full px-4 py-2 bg-gray-700 text-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              />
-            )}
-            {step === 3 && (
-              <input 
-                type="password" 
-                placeholder="New Password" 
-                value={newPassword} 
-                onChange={(e) => setNewPassword(e.target.value)} 
-                required
-                className="w-full px-4 py-2 bg-gray-700 text-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              />
-            )}
-            <button 
-              type="submit" 
-              className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-2 rounded transition duration-300"
+            {/* Google Login */}
+            <GoogleOAuthProvider
+              clientId={
+                import.meta.env.VITE_GOOGLE_CLIENT_ID ||
+                "902643667030-1l6l00sgj4lp7k7voht4rep5rr7svdfu.apps.googleusercontent.com"
+              }
             >
-              {step === 1 ? 'Send OTP' : step === 2 ? 'Verify OTP' : 'Reset Password'}
-            </button>
-          </form>
-        )}
-        <p className="text-center mt-4">
-          {!isForgotPassword ? (
-            <>
-              {isSignUp ? (
-                <span>
-                  Already have an account?{' '}
-                  <button onClick={() => setIsSignUp(false)} className="text-indigo-400 hover:underline">
-                    Sign in
-                  </button>
-                </span>
-              ) : (
-                <span>
-                  Don't have an account?{' '}
-                  <button onClick={() => setIsSignUp(true)} className="text-indigo-400 hover:underline">
-                    Sign up
-                  </button>
-                </span>
+              <GoogleLogin
+                onSuccess={(credentialResponse) => handleGoogleLoginSuccess(credentialResponse)}
+                onError={() => console.log("Google Login Failed")}
+              />
+            </GoogleOAuthProvider>
+
+            {/* Facebook Login */}
+            <FacebookLogin
+              appId={import.meta.env.VITE_FACEBOOK_APP_ID}
+              onSuccess={(response) => handleFacebookLoginSuccess(response)}
+              onFail={(error) => console.error("Facebook Login Failed:", error)}
+              onProfileSuccess={(profile) => console.log("Facebook Profile:", profile)}
+              render={({ onClick }) => (
+                <button
+                  onClick={onClick}
+                  className="w-full flex items-center bg-blue-600 text-white px-4 py-2 rounded-md shadow-md hover:bg-blue-700 transition duration-300 mt-2"
+                >
+                  {/* Facebook Icon */}
+                  <div className="bg-white rounded-full p-1 mr-3">
+                    <FaFacebook className="text-blue-600 text-2xl" />
+                  </div>
+                  {/* Centered Text */}
+                  <span className="flex-1 text-center font-semibold">
+                    Login with Facebook
+                  </span>
+                </button>
               )}
-              <br />
-              <button onClick={() => setIsForgotPassword(true)} className="text-indigo-400 hover:underline mt-2">
-                Forgot Password?
-              </button>
+            />
+
+            {/* Twitter Login */}
+            <button
+              // onClick={(response) => handleTwitterLoginSuccess(response)}
+              onClick={() => (window.location.href = "http://localhost:4000/api/auth/twitter")}
+              className="w-full flex items-center bg-blue-500 text-white px-4 py-2 rounded-md shadow-md hover:bg-blue-600 transition duration-300 mt-2"
+            >
+              {/* Twitter Icon */}
+              <div className="bg-white rounded-full p-1 mr-3">
+                <FaTwitter className="text-blue-500 text-2xl" />
+              </div>
+              {/* Centered Text */}
+              <span className="flex-1 text-center font-semibold">
+                Login with Twitter
+              </span>
+            </button>
+
+          </div>
+        </form>
+      ) : (
+        <form
+          onSubmit={step === 1 ? handleRequestOTP : step === 2 ? handleVerifyOTP : handleResetPassword}
+          className="space-y-4 bg-gray-800 p-6 rounded shadow-lg"
+        >
+          {step === 1 && (
+            <>
+              <div className="mb-4">
+                <label className="text-gray-300">Select OTP Delivery Method:</label>
+                <div className="flex items-center space-x-4">
+                  <label className="text-gray-300">
+                    <input
+                      type="radio"
+                      name="otpMethod"
+                      value="email"
+                      checked={otpMethod === 'email'}
+                      onChange={() => setOtpMethod('email')}
+                      className="mr-2"
+                    />
+                    Email
+                  </label>
+                  <label className="text-gray-300">
+                    <input
+                      type="radio"
+                      name="otpMethod"
+                      value="phone"
+                      checked={otpMethod === 'phone'}
+                      onChange={() => setOtpMethod('phone')}
+                      className="mr-2"
+                    />
+                    Phone
+                  </label>
+                </div>
+              </div>
+
+              {otpMethod === 'email' && (
+                <input
+                  type="email"
+                  placeholder="Enter Email"
+                  value={resetEmail}
+                  onChange={(e) => setResetEmail(e.target.value)}
+                  required
+                  className="w-full px-4 py-2 bg-gray-700 text-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              )}
+              {otpMethod === 'phone' && (
+                <input
+                  type="text"
+                  placeholder="Enter Phone Number (+91)"
+                  value={resetPhone}
+                  onChange={(e) => setResetPhone(e.target.value)}
+                  className="w-full px-4 py-2 bg-gray-700 text-gray-300 rounded focus:outline-none"
+                />
+              )}
             </>
-          ) : (
+          )}
+          {step === 2 && (
+            <input
+              type="text"
+              placeholder="Enter OTP"
+              value={otp}
+              onChange={(e) => setOtp(e.target.value)}
+              required
+              className="w-full px-4 py-2 bg-gray-700 text-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+          )}
+          {step === 3 && (
+            <input
+              type="password"
+              placeholder="New Password"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              required
+              className="w-full px-4 py-2 bg-gray-700 text-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+          )}
+          <button
+            type="submit"
+            className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-2 rounded transition duration-300"
+          >
+            {step === 1 ? 'Send OTP' : step === 2 ? 'Verify OTP' : 'Reset Password'}
+          </button>
+        </form>
+      )}
+      <p className="text-center mt-4">
+        {!isForgotPassword ? (
+          <>
+            {isSignUp ? (
+              <span>
+                Already have an account?{' '}
+                <button onClick={() => setIsSignUp(false)} className="text-indigo-400 hover:underline">
+                  Sign in
+                </button>
+              </span>
+            ) : (
+              <span>
+                Don't have an account?{' '}
+                <button onClick={() => setIsSignUp(true)} className="text-indigo-400 hover:underline">
+                  Sign up
+                </button>
+              </span>
+            )}
+            <br />
+            <button onClick={() => setIsForgotPassword(true)} className="text-indigo-400 hover:underline mt-2">
+              Forgot Password?
+            </button>
+          </>
+        ) : (
           <button onClick={() => setIsForgotPassword(false)} className="text-indigo-400 hover:underline">
             Back to Login
           </button>
         )}
       </p>
-       {/* Display user ID or guest message */}
-        <p className="text-center mt-4">
-          {userId ? `User ID: ${userId}` : 'You are currently signed in as a guest.'}
-        </p>
+      {/* Display user ID or guest message */}
+      <p className="text-center mt-4">
+        {userId ? `User ID: ${userId}` : 'You are currently signed in as a guest.'}
+      </p>
     </div>
   );
 };

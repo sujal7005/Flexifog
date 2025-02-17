@@ -1,43 +1,119 @@
 import { OAuth2Client } from 'google-auth-library';
+import axios from 'axios';
+import crypto from 'crypto';
+import jwt from "jsonwebtoken";
 import User from '../models/User.js';
 
-const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID || "863030671533-jfc601o3jbou0dnsu9obvasrq2i7onlm.apps.googleusercontent.com");
+const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID || "902643667030-1l6l00sgj4lp7k7voht4rep5rr7svdfu.apps.googleusercontent.com");
+
+// Function to generate a random discount code
+const generateDiscountCode = () => {
+  return `GOOGLE-${crypto.randomBytes(4).toString("hex").toUpperCase()}`;
+};
+
 // Google sign-in handler
 export const googleSignin = async (req, res) => {
-  const { credential } = req.body; // Extract Google token from request body
-  console.log('Received credential:', credential);
-  try {
-    const ticket = await client.verifyIdToken({
-      idToken: credential,
-      audience: process.env.GOOGLE_CLIENT_ID,
-    });
-    const payload = ticket.getPayload();
+  console.log("Received Google Sign-In request:", req.body);
+  const { idToken, accessToken } = req.body; // Extract Google token from request body
 
-    // Extract user details
+  if (!idToken || !accessToken) {
+    return res.status(400).json({ success: false, message: "Missing credentials" });
+  }
+
+  try {
+    console.log("Verifying token...");
+    const ticket = await client.verifyIdToken({
+      idToken,
+      audience: process.env.GOOGLE_CLIENT_ID || "902643667030-1l6l00sgj4lp7k7voht4rep5rr7svdfu.apps.googleusercontent.com", // Ensure this matches your Google Cloud Client ID
+    });
+
+    console.log("Token verified!");
+    const payload = ticket.getPayload();
+    console.log("Decoded Payload:", payload);
     const { sub: googleId, email, name } = payload;
-    
+
+    // Fetch phone number from Google People API
+    const { data } = await axios.get(`https://people.googleapis.com/v1/people/me?personFields=phoneNumbers`, {
+      headers: { Authorization: `Bearer ${accessToken}` }
+    });
+    // Debugging: Check if phoneNumbers exist
+    console.log("Full API Response:", JSON.stringify(data, null, 2));
+
+    const phoneNumber = data.phoneNumbers?.[0]?.value || "Not Provided";
+    console.log("phone Number: ", phoneNumber);
+
     // Check if user exists in your database
     let user = await User.findOne({ email });
     if (!user) {
-        // Create new user if not exists
-        user = new User({ name, email, password: '', phoneNumber: '', addresses: [] });
-        await user.save();
+      console.log("User not found, creating new user...");
+
+      // Generate discount code and expiration date
+      const discountCode = generateDiscountCode();
+      const discountExpiresAt = new Date();
+      discountExpiresAt.setDate(discountExpiresAt.getDate() + 7); // Expires in 7 days
+
+      user = new User({ 
+        googleId,
+        name, 
+        email, 
+        password: 'google_user', 
+        phoneNumber, 
+        addresses: [],
+        discountCode,
+        discountExpiresAt,
+      });
+      await user.save();
+    } else {
+      console.log("User exists, logging in...");
     }
 
     res.json({ success: true, user });
   } catch (error) {
-    console.error('Google sign-in error:', error);
-    res.status(500).json({ success: false, message: 'Google sign-in failed' });
+    console.error("Google sign-in error:", error);
+    res.status(500).json({ success: false, message: "Google sign-in failed", error: error.message });
   }
 };
 
 // Facebook sign-in handler
 export const facebookSignin = async (req, res) => {
   const { accessToken } = req.body; // Extract Facebook access token
+
+  if (!accessToken) {
+    return res.status(400).json({ success: false, message: "Access token is required" });
+  }
+
+  // Generate appsecret_proof
+  const appSecret = process.env.FACEBOOK_CLIENT_SECRET; // Make sure this is in your .env file
+  const appsecret_proof = crypto
+    .createHmac("sha256", appSecret)
+    .update(accessToken)
+    .digest("hex");
+
   try {
-    // Handle the Facebook sign-in process here (verify token, etc.)
-    res.json({ success: true, user: { name: 'Facebook User' } });
+    // Verify accessToken with Facebook API
+    const fbResponse = await axios.get(`https://graph.facebook.com/me?access_token=${accessToken}&fields=id,name,email,picture&appsecret_proof=${appsecret_proof}`);
+    const { id, name, email } = fbResponse.data;
+
+    let user = await User.findOne({ email });
+
+    if (!user) {
+      user = new User({
+        facebookId: id,
+        name,
+        email: email || `fbuser${id}@facebook.com`,
+        password: 'facebook_user', // Default password
+        phoneNumber: '',
+        bonusPoints: 0,
+        discountCode: null,
+        discountExpiresAt: null,
+        addresses: [],
+      });
+      await user.save();
+    }
+
+    res.json({ success: true, user });
   } catch (error) {
+    console.error("Facebook Sign-in Error:", error);
     res.status(500).json({ success: false, message: 'Facebook sign-in failed' });
   }
 };
@@ -45,10 +121,38 @@ export const facebookSignin = async (req, res) => {
 // Twitter sign-in handler
 export const twitterSignin = async (req, res) => {
   const { oauth_token, oauth_token_secret } = req.body; // Extract tokens
-  try {
-    // Handle the Twitter sign-in process here
-    res.json({ success: true, user: { name: 'Twitter User' } });
-  } catch (error) {
-    res.status(500).json({ success: false, message: 'Twitter sign-in failed' });
+
+  if (!oauth_token || !oauth_token_secret) {
+    return res.status(400).json({ success: false, message: "Missing OAuth tokens" });
   }
-};  
+
+  try {
+    passport.authenticate("twitter", async (err, user, info) => {
+      if (err || !user) {
+        return res.status(401).json({ success: false, message: "Twitter authentication failed" });
+      }
+
+      // Generate JWT for authenticated user
+      const token = jwt.sign(
+        { id: user.id, name: user.displayName, twitterId: user.id },
+        process.env.JWT_SECRET,
+        { expiresIn: "7d" }
+      );
+
+      res.json({
+        success: true,
+        message: "Twitter sign-in successful",
+        user: {
+          id: user.id,
+          name: user.displayName,
+          username: user.username,
+          email: user.email,
+        },
+        token,
+      });
+    })(req, res);
+  } catch (error) {
+    console.error("Twitter sign-in error:", error);
+    res.status(500).json({ success: false, message: "Twitter sign-in failed" });
+  }
+};

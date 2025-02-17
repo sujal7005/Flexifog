@@ -1,7 +1,11 @@
 import mongoose from "mongoose";
 
 const refurbishedLaptopSchema = new mongoose.Schema({
-    type: { type: String, required: true },
+    type: { 
+        type: String,
+        enum: ['New', 'Refurbished'],
+        required: true, 
+    },
     id: { type: String, required: true },
     customId: { type: String, unique: true },
     productId: { type: String, required: true, unique: true },

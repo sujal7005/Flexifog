@@ -7,6 +7,7 @@ import Footer from './components/Footer';
 import Cookies from './components/CookieConsent.jsx';
 import PageTransition from './components/PageTransition';
 import './App.css';
+import HubComputerDetails from './pages/7HubComputerDetails.jsx';
 
 const SignIn = lazy(() => import('./components/SignIn'));
 const Profile = lazy(() => import('./components/Profile'));
@@ -74,6 +75,7 @@ const App = () => {
                   <Route path='/faq' element={<Faq />} />
                   <Route path='/support' element={<Support />} />
                   <Route path="/search" element={<SearchResults />} />
+                  <Route path="/7hubcomputer-details" element={<HubComputerDetails />} />
                 </Routes>
               </Suspense>
             </PageTransition>

@@ -120,7 +120,7 @@ const MiniPCs = () => {
                     </li>
                   ))}
               </ul>
-              <p className="text-2xl font-bold text-blue-600 mb-5">₹{pc.price}</p>
+              <p className="text-2xl font-bold text-blue-600 mb-5">₹{pc.finalPrice}</p>
               <Link to={`/mini-pcs/${pc._id}`}>
                 <button className="w-full bg-blue-500 text-white py-3 px-6 rounded-lg hover:bg-blue-600 transition duration-300 ease-in-out transform hover:scale-105">
                   Buy Now

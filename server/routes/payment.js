@@ -42,6 +42,7 @@ const generatePaytmChecksum = (params) => {
 // Handle Cash on Delivery
 const saveOrder = async (orderDetails, paymentMethod, res) => {
   try {
+    console.log("Received orderDetails:", orderDetails); // Debugging
     // Simulate saving order in the database
 
     if (!orderDetails || !orderDetails.userDetails || !orderDetails.product) {
@@ -60,9 +61,17 @@ const saveOrder = async (orderDetails, paymentMethod, res) => {
     // ✅ Ensure `bonuses` is always treated as a number
     const totalBonusPoints = Number(orderDetails.product.bonuses || 0);
 
+    // 🔥 **Calculate totalPrice from product.finalPrice**
+    const totalPrice = orderDetails.totalPrice || orderDetails.product.finalPrice * orderDetails.quantity;
+    
+    if (typeof totalPrice === "undefined") {
+      return res.status(400).json({ error: 'Total price is required but was not provided' });
+    }
+
     const newOrder = new Order({
       ...orderDetails,
       userId: orderDetails.userDetails.userId,
+      totalPrice,
       paymentMethod, // Set the payment method as COD
       deliveryDate: deliveryDate.toDate(), // Convert moment object to Date
     });

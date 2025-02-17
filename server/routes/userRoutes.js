@@ -224,39 +224,4 @@ router.put('/orders/:orderId/cancel', async (req, res) => {
     }
 });
 
-// router.post('/update-order/:orderId', async (req, res) => {
-//     const { orderId } = req.params;
-//     const { status } = req.body;
-
-//     try {
-//         const order = await Order.findById(orderId);
-//         if (!order) return res.status(404).json({ message: "Order not found" });
-
-//         const user = await User.findById(order.userId);
-//         if (!user) return res.status(404).json({ message: "User not found" });
-
-//         console.log(`Before update: User bonuses = ${user.bonuses}, Order bonus = ${order.bonusPoints}`);
-
-//         if (order.status !== "delivered" && status === "delivered") {
-//             // If order is newly marked as delivered, add bonus points
-//             user.bonuses += order.bonusPoints;
-//             console.log(`Added ${order.bonusPoints} points`);
-//         } else if (order.status === "delivered" && status === "canceled") {
-//             // If order was delivered and is now canceled, remove bonus points
-//             user.bonuses -= order.bonusPoints;
-//             console.log(`Removed ${order.bonusPoints} points`);
-//         }
-
-//         order.status = status;
-//         await order.save();
-//         await user.save();
-
-//         console.log(`After update: User bonuses = ${user.bonuses}`);
-
-//         res.json({ message: "Order updated", userBonuses: user.bonuses });
-//     } catch (error) {
-//         res.status(500).json({ message: "Server error", error });
-//     }
-// });
-
 export default router;

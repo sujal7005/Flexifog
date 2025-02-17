@@ -1,5 +1,7 @@
 import { React, useEffect, useState } from 'react';
-import { Link } from 'react-router-dom'
+import { motion } from 'framer-motion';
+import { Link } from 'react-router-dom';
+import bgVideo from "../assets/video/Screen Recording 2025-02-06 212028.mp4";
 
 const testimonials = [
   {
@@ -40,13 +42,10 @@ const reviews = [
 ];
 
 const Home = () => {
-
   const [products, setProducts] = useState([]);
   const [error, setError] = useState(null);
   const [dynamicText, setDynamicText] = useState("Welcome to 7HubComputer");
-  const [backgroundImage, setBackgroundImage] = useState(
-    "https://jetlaptechnologies.com/wp-content/uploads/2023/07/Antec-Torque.webp"
-  );
+  const [backgroundImage, setBackgroundImage] = useState("https://t3.ftcdn.net/jpg/09/18/42/58/360_F_918425842_Ww2uHj43kH4KP1Agmo6H1nkUciN2kOGo.jpg");
 
   useEffect(() => {
     const texts = [
@@ -60,24 +59,24 @@ const Home = () => {
     ];
 
     const images = [
-      "https://jetlaptechnologies.com/wp-content/uploads/2023/07/Antec-Torque.webp",
-      "https://example.com/image2.jpg", // Replace with your own image URLs
-      "https://example.com/image3.jpg",
-      "https://example.com/image4.jpg"
+      "https://60a99bedadae98078522-a9b6cded92292ef3bace063619038eb1.ssl.cf2.rackcdn.net/images_CategoryPages_CategoryPromos_Cases_CASES_BuildN.png",
+      "https://siriuspowerpc.com/wp-content/uploads/2023/06/CPU-Category-430x430.png",
+      "https://www.yankodesign.com/images/design_news/2021/09/this-sci-fi-transparent-pc-case-is-a-symphony-of-performance-and-looks/Crystal-PC-Case-Concept-by-Alex-Casabo_Desktop-10.jpg",
+      "https://example.com/image4.jpg",
+      "https://example.com/image5.jpg",
+      "https://example.com/image6.jpg",
+      "https://example.com/image7.jpg",
     ];
 
     let index = 0;
-    let imageIndex = 0;
 
     const intervalId = setInterval(() => {
       setDynamicText(texts[index]);
-      setBackgroundImage(images[imageIndex]);
-
+      setBackgroundImage(images[index]);
       index = (index + 1) % texts.length;
-      imageIndex = (imageIndex + 1) % images.length;
-    }, 4000); // Change text every 4 seconds
+    }, 4000);
 
-    return () => clearInterval(intervalId); // Clean up on component unmount
+    return () => clearInterval(intervalId);
   }, []);
 
   useEffect(() => {
@@ -90,14 +89,11 @@ const Home = () => {
         if (!response.ok) throw new Error("Failed to fetch products");
 
         const data = await response.json();
-        // console.log(data)
         const allProducts = [
           ...data.prebuildPC,
           ...data.refurbishedProducts,
           ...data.miniPCs,
-          // Add any other product categories here if applicable
         ];
-        console.log("All Products:", allProducts)
         setProducts(allProducts);
       } catch (error) {
         console.error(error);
@@ -106,13 +102,11 @@ const Home = () => {
     };
 
     fetchProducts(1, 10);
-  }, [])
+  }, []);
 
   const renderStars = (rating) => {
-    const filledStars = Array(rating).fill('★'); // Filled stars
-    const emptyStars = Array(5 - rating).fill('☆'); // Empty stars
-
-    // Concatenate both arrays and map to render each star
+    const filledStars = Array(rating).fill('★');
+    const emptyStars = Array(5 - rating).fill('☆');
     const stars = [...filledStars, ...emptyStars];
 
     return (
@@ -128,58 +122,167 @@ const Home = () => {
     <div className="bg-gray-50">
       {/* Hero Section */}
       <section
-        className="bg-cover bg-center h-screen relative text-white font-bold overflow-hidden animate-scroll"
+        className="relative h-screen bg-cover bg-center text-white flex items-center justify-center transition-all duration-1000"
         style={{
           backgroundImage: `url(${backgroundImage})`,
-          animation: "scrollBackground 20s linear infinite",
         }}
       >
-        <div className="absolute inset-0 bg-gradient-to-r from-black via-gray-900 to-transparent opacity-80"></div>
+        <div className="absolute inset-0 bg-black bg-opacity-60"></div>
 
-        <div className="relative container mx-auto flex flex-col md:flex-row items-center left-0 h-full px-6 md:px-12">
-          <div className="text-left max-w-3xl">
-            <h1 className="text-6xl md:text-7xl font-extrabold mb-4 leading-tight text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-teal-400 animate__animated animate__fadeInUp">
-              {dynamicText}
-            </h1>
-            <p className="text-lg md:text-2xl font-light text-gray-300 mt-4 opacity-80 animate__animated animate__fadeInUp animate__delay-1s">
-              Your one-stop destination for custom PCs, pre-built systems, laptops, and more.
-            </p>
-            <a
-              href="#featured"
-              className="mt-8 inline-block bg-gradient-to-r from-blue-500 to-teal-500 hover:from-teal-500 hover:to-blue-600 text-white py-3 px-6 rounded-full text-lg transition-transform transform hover:-translate-y-1 shadow-lg hover:shadow-xl duration-300"
-            >
-              Explore Now
-            </a>
-          </div>
+        <motion.div
+          className="relative text-center px-6 md:px-12"
+          initial={{ opacity: 0, y: 50 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 1 }}
+        >
+          <motion.h1
+            className="text-5xl md:text-7xl font-extrabold bg-gradient-to-r from-blue-400 to-teal-400 bg-clip-text text-transparent"
+            key={dynamicText}
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 1 }}
+          >
+            {dynamicText}
+          </motion.h1>
+
+          <motion.p
+            className="mt-4 text-lg md:text-2xl text-gray-300"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.5, duration: 1 }}
+          >
+            Your one-stop destination for custom PCs, pre-built systems, laptops, and more.
+          </motion.p>
+
+          <motion.a
+            href="#featured"
+            className="mt-8 inline-block bg-gradient-to-r from-blue-500 to-teal-500 hover:from-teal-500 hover:to-blue-600 text-white py-3 px-6 rounded-full text-lg transition-all transform hover:-translate-y-1 shadow-lg"
+            whileHover={{ scale: 1.1 }}
+          >
+            Explore Now
+          </motion.a>
+        </motion.div>
+      </section>
+
+      {/* Box Below Hero Section */}
+      <section className="relative mt-10 px-4 md:px-20 h-[500px] md:h-[600px] flex items-center justify-center">
+        {/* Background Video */}
+        <video
+          autoPlay
+          loop
+          muted
+          className="absolute top-0 left-0 w-full h-full object-cover"
+        >
+          <source src={bgVideo} type="video/mp4" />
+          Your browser does not support the video tag.
+        </video>
+
+        {/* Dark Overlay for better visibility */}
+        <div className="absolute inset-0 bg-black opacity-50 backdrop-blur-lg"></div>
+
+        {/* Content Box */}
+        <div className="relative w-full max-w-2xl flex flex-col items-center py-10 px-6 md:py-16 md:px-12 bg-white bg-opacity-90 shadow-lg rounded-xl">
+          <h2 className="text-3xl md:text-4xl font-bold text-gray-800 text-center">
+            Why 7HubComputer?
+          </h2>
+
+          <p className="mt-4 text-lg text-gray-700 text-center">
+            Discover the best-in-class PC solutions with a 7-step quality check.
+          </p>
+
+          {/* Know More Button */}
+          <Link
+            to="/7hubcomputer-details"
+            className="mt-6 px-8 py-3 bg-green-600 text-white font-semibold rounded-md shadow-md hover:bg-green-700 transition-all"
+          >
+            Know More
+          </Link>
         </div>
       </section>
 
       {/* Featured Products Section */}
-      <section id="featured" className="py-16 bg-gradient-to-r from-blue-50 to-indigo-50">
+      <section id="featured" className="py-20 bg-gradient-to-r from-blue-50 to-indigo-50">
         <div className="container mx-auto text-center mb-12">
-          <h2 className="text-4xl font-extrabold text-indigo-700 mb-6 shadow-md inline-block py-2 px-4 bg-white rounded-md">Featured Pre-Built PCs</h2>
+          <h2 className="text-4xl font-extrabold text-indigo-700 mb-6 shadow-md inline-block py-2 px-6 bg-white rounded-lg">
+            Pre-Built Desktop PCs
+          </h2>
           <p className="text-gray-700 text-lg mb-8">Explore our top selections to get started with the ultimate performance.</p>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10 container mx-auto px-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-12 container mx-auto px-6">
           {products
             .filter(product => product.type === "Pre-Built PC")
             .slice(0, 3)
-            .map((product, index) => (
+            .map((product, index) => {
+              const ramPrice = product?.specs?.ramOptions?.[0]?.price || 0;
+              const storage1Price = product?.specs?.storage1Options?.[0]?.price || 0;
+              const storage2Price = product?.specs?.storage2Options?.[0]?.price || 0;
+
+              const totalPrice = product.finalPrice + ramPrice + storage1Price + storage2Price;
+              return (
+                <div
+                  key={index}
+                  className="relative bg-white rounded-xl shadow-lg hover:shadow-2xl transition-transform transform hover:-translate-y-2 duration-300"
+                >
+                  {/* 🏷️ Product Category Label */}
+                  <div className="absolute top-2 left-2 bg-indigo-500 text-white text-sm font-semibold px-4 py-2 shadow-md z-10 tracking-wide rounded-md w-auto">
+                    {product.category}
+                  </div>
+
+                  <img
+                    src={`http://localhost:4000/uploads/${product.image[0].split('\\').pop()}`}
+                    alt={product.name}
+                    className="w-full h-56 object-cover transform transition-transform duration-300 hover:scale-105"
+                    loading="lazy"
+                  />
+                  <div className="p-6 text-center">
+                    <h3 className="text-xl font-bold text-gray-800">{product.name}</h3>
+                    <p className="text-indigo-600 text-2xl font-semibold mt-2">₹{totalPrice}</p>
+                    <Link
+                      to={`/prebuilt`}
+                      className="mt-4 inline-block bg-gradient-to-r from-indigo-500 to-blue-500 hover:from-blue-600 hover:to-indigo-600 text-white py-2 px-5 rounded-full transition-transform transform hover:-translate-y-1 shadow-md duration-300"
+                    >
+                      View Details
+                    </Link>
+                  </div>
+                </div>
+              )
+            })}
+        </div>
+      </section>
+
+      {/* Refurbished Laptops Section */}
+      <section className="py-20 bg-gradient-to-r from-blue-50 to-indigo-50">
+        <div className="container mx-auto text-center mb-12">
+          <h2 className="text-4xl font-extrabold text-indigo-700 mb-6 shadow-md inline-block py-2 px-6 bg-white rounded-lg">
+            Refurbished Laptops
+          </h2>
+          <p className="text-gray-700 text-lg mb-8">Quality refurbished laptops at unbeatable prices.</p>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-20 container mx-auto px-6">
+          {products
+            .filter(laptop => laptop.type === "Refurbished Laptop")
+            .slice(0, 3)
+            .map((laptop, index) => (
               <div
                 key={index}
-                className="bg-white rounded-xl shadow-lg transform hover:-translate-y-2 hover:shadow-2xl transition duration-300"
+                className="relative bg-gray-100 rounded-lg shadow-md overflow-hidden hover:shadow-2xl transform hover:scale-105 transition duration-300"
               >
+                {/* 🏷️ Product Category Label */}
+                <div className="absolute top-2 left-2 bg-indigo-500 text-white text-sm font-semibold px-4 py-2 shadow-md z-10 tracking-wide rounded-md w-auto">
+                  {laptop.category}
+                </div>
+
                 <img
-                  src={`http://localhost:4000/uploads/${product.image[0].split('\\').pop()}`}
-                  alt={product.name}
-                  className="w-full h-56 object-cover transform transition-transform duration-300 hover:scale-105"
+                  src={`http://localhost:4000/uploads/${laptop.image[0].split('\\').pop()}`}
+                  alt={laptop.name}
+                  className="w-full h-56 object-cover transform transition-transform duration-300 hover:scale-90"
                   loading="lazy"
                 />
-                <div className="p-6">
-                  <h3 className="text-xl font-semibold text-gray-800">{product.name}</h3>
-                  <p className="text-gray-600 text-lg mt-2">{product.price}</p>
+                <div className="p-6 text-center">
+                  <h3 className="text-xl font-bold text-gray-800">{laptop.name}</h3>
+                  <p className="text-indigo-600 text-2xl font-semibold mt-2">₹{laptop.finalPrice}</p>
                   <Link
-                    to={`/prebuilt`}
+                    to={`/laptops`}
                     className="mt-4 inline-block bg-gradient-to-r from-indigo-500 to-blue-500 hover:from-blue-600 hover:to-indigo-600 text-white py-2 px-5 rounded-full transition-transform transform hover:-translate-y-1 shadow-md duration-300"
                   >
                     View Details
@@ -190,56 +293,41 @@ const Home = () => {
         </div>
       </section>
 
-      {/* Call to Action Section */}
-      {/* <section className="relative bg-gradient-to-r from-gray-800 to-gray-900 text-white py-20 text-center">
-        <div className="absolute inset-0 bg-opacity-30 bg-[url('/path-to-your-background-image.jpg')] bg-cover bg-center"></div>
-        <div className="relative z-10 container mx-auto px-6">
-          <h2 className="text-5xl font-extrabold tracking-wide mb-6 text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-teal-400 shadow-md">
-            Ready to Take the Next Step?
-          </h2>
-          <p className="text-lg font-medium mb-8 max-w-xl mx-auto text-gray-300">
-            Join thousands of satisfied customers and build your perfect PC today!
-          </p>
-          <a
-            href="/custom"
-            className="inline-block bg-gradient-to-r from-green-400 to-teal-500 hover:from-teal-500 hover:to-green-400 text-white py-4 px-8 rounded-full transition-transform transform hover:-translate-y-1 shadow-xl hover:shadow-2xl duration-300"
-          >
-            Start Customizing Now
-          </a>
-        </div> */}
-        {/* Decorative Elements */}
-        {/* <div className="absolute -top-6 left-10 w-24 h-24 bg-teal-500 bg-opacity-20 blur-lg rounded-full"></div>
-        <div className="absolute top-10 right-16 w-36 h-36 bg-green-400 bg-opacity-10 blur-2xl rounded-full"></div>
-        <div className="absolute bottom-8 left-20 w-20 h-20 bg-teal-400 bg-opacity-30 blur-lg rounded-full"></div>
-      </section> */}
-
-
-      {/* Refurbished Laptops Section */}
+      {/* Mini PCs Section */}
       <section className="py-16 bg-gradient-to-r from-blue-50 to-indigo-50">
         <div className="container mx-auto text-center mb-12">
-          <h2 className="text-4xl font-extrabold text-indigo-700 mb-6 shadow-md inline-block py-2 px-4 bg-white rounded-md">Refurbished Laptops</h2>
-          <p className="text-gray-700 text-lg mb-8">Quality refurbished laptops at unbeatable prices.</p>
+          <h2 className="text-4xl font-extrabold text-indigo-700 mb-6 shadow-md inline-block py-2 px-4 bg-white rounded-md">
+            Mini PCs
+          </h2>
+          <p className="text-gray-700 text-lg mb-8">
+            Compact yet powerful computing solutions for every need.
+          </p>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10 container mx-auto px-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-20 container mx-auto px-6">
           {products
-            .filter(laptop => laptop.type === "Refurbished Laptop")
+            .filter(minipc => minipc.type === "Mini PC")
             .slice(0, 3)
-            .map((laptop, index) => (
+            .map((minipc, index) => (
               <div
                 key={index}
-                className="bg-gray-100 rounded-lg shadow-md overflow-hidden transform hover:scale-105 transition duration-300"
+                className="bg-white rounded-xl shadow-lg transform hover:-translate-y-2 hover:shadow-2xl transition duration-300 relative"
               >
+                {/* 🏷️ Product Category Label */}
+                <div className="absolute top-2 left-2 bg-indigo-500 text-white text-sm font-semibold px-4 py-2 shadow-md z-10 tracking-wide rounded-md w-auto">
+                  {minipc.category}
+                </div>
+
                 <img
-                  src={`http://localhost:4000/uploads/${laptop.image[0].split('\\').pop()}`}
-                  alt={laptop.name}
-                  className="w-full h-56 object-cover transform transition-transform duration-300 hover:scale-90"
+                  src={`http://localhost:4000/uploads/${minipc.image[0].split('\\').pop()}`}
+                  alt={minipc.name}
+                  className="w-full h-56 object-cover transform transition-transform duration-300 hover:scale-105"
                   loading="lazy"
                 />
-                <div className="p-6">
-                  <h3 className="text-xl font-semibold text-gray-800">{laptop.name}</h3>
-                  <p className="text-gray-600 text-lg mt-2">{laptop.price}</p>
+                <div className="p-6 text-center">
+                  <h3 className="text-xl font-bold text-gray-800">{minipc.name}</h3>
+                  <p className="text-indigo-600 text-2xl font-semibold mt-2">₹{minipc.finalPrice}</p>
                   <Link
-                    to={`/laptops`}
+                    to={`/mini-pcs`}
                     className="mt-4 inline-block bg-gradient-to-r from-indigo-500 to-blue-500 hover:from-blue-600 hover:to-indigo-600 text-white py-2 px-5 rounded-full transition-transform transform hover:-translate-y-1 shadow-md duration-300"
                   >
                     View Details
@@ -313,7 +401,6 @@ const Home = () => {
           ))}
         </div>
       </section>
-
     </div>
   );
 };

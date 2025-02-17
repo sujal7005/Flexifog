@@ -54,7 +54,7 @@ const PreBuiltPCs = () => {
         <title>Pre-Built PCs - Gaming, Office & All-Rounder PCs</title>
         <meta name="description" content="Explore high-performance pre-built PCs for gaming, office work, and all-rounder needs." />
       </Helmet>
-      
+
       <h1 className="text-4xl font-extrabold mb-8 text-blue-400">Pre-Built PCs</h1>
 
       {/* Filter and Sort Options */}
@@ -82,52 +82,56 @@ const PreBuiltPCs = () => {
         {filteredPCs.length === 0 ? (
           <div>No Pre-Built PCs available.</div> // Display a message if no PCs are available
         ) : (
-          filteredPCs.map((pc) => (
-            <div
-              key={pc._id}
-              className="bg-white text-gray-800 shadow-lg transform hover:-translate-y-2 transition duration-300 ease-in-out rounded-lg overflow-hidden"
-            >
-              <Link to={`/pc/${pc._id}`}>
-                {Array.isArray(pc.image) && pc.image.length > 0 &&
-                  console.log(`http://localhost:4000/uploads/${pc.image[0].split('\\').pop()}`)
-                }
-                <img
-                  className="w-full h-56 object-cover transition duration-300 hover:scale-105"
-                  src={
-                    Array.isArray(pc.image) && pc.image.length > 0
-                      ? `http://localhost:4000/uploads/${pc.image[0].split('\\').pop()}` // Use the first image if available
-                      : "path/to/default-image.jpg" // Fallback image
-                  }
-                  alt={pc.name || "Pre-Built PC"}
-                />
-              </Link>
-              <div className="p-6">
-                <h2 className="text-2xl font-semibold mb-3">{pc.name}</h2>
-                <ul className="text-gray-600 mb-3">
-                  {/* Display only the top 3 specs for each category */}
-                  {Object.entries(pc.specs)
-                    .slice(0, 3) // Get only the first 3 entries
-                    .map(([key, specs]) => (
-                      <li key={key}>
-                        {key}:{" "}
-                        {Array.isArray(specs)
-                          ? specs
-                            .slice(0, 1)
-                            .map((spec) => `${spec.name}: ${spec.value}`)
-                            .join(", ")
-                          : specs}
-                      </li>
-                    ))}
-                </ul>
-                <p className="text-2xl font-bold text-blue-600 mb-5">₹{pc.price}</p>
+          filteredPCs.map((pc) => {
+            const ramPrice = pc?.specs?.ramOptions?.[0]?.price;
+            const storage1Price = pc?.specs?.storage1Options?.[0]?.price;
+            const storage2Price = pc?.specs?.storage2Options?.[0]?.price;
+
+            const totalPrice = pc.finalPrice + ramPrice + storage1Price + storage2Price
+            return (
+              <div
+                key={pc._id}
+                className="bg-white text-gray-800 shadow-lg transform hover:-translate-y-2 transition duration-300 ease-in-out rounded-lg overflow-hidden"
+              >
                 <Link to={`/pc/${pc._id}`}>
-                  <button className="w-full bg-blue-500 text-white py-3 px-6 rounded-lg hover:bg-blue-600 transition duration-300 ease-in-out transform hover:scale-105">
-                    Buy Now
-                  </button>
+                  <img
+                    className="w-full h-56 object-cover transition duration-300 hover:scale-105"
+                    src={
+                      Array.isArray(pc.image) && pc.image.length > 0
+                        ? `http://localhost:4000/uploads/${pc.image[0].split('\\').pop()}` // Use the first image if available
+                        : "path/to/default-image.jpg" // Fallback image
+                    }
+                    alt={pc.name || "Pre-Built PC"}
+                  />
                 </Link>
+                <div className="p-6">
+                  <h2 className="text-2xl font-semibold mb-3">{pc.name}</h2>
+                  <ul className="text-gray-600 mb-3">
+                    {/* Display only the top 3 specs for each category */}
+                    {Object.entries(pc.specs)
+                      .slice(0, 3) // Get only the first 3 entries
+                      .map(([key, specs]) => (
+                        <li key={key}>
+                          {key}:{" "}
+                          {Array.isArray(specs)
+                            ? specs
+                              .slice(0, 1)
+                              .map((spec) => `${spec.name}: ${spec.value}`)
+                              .join(", ")
+                            : specs}
+                        </li>
+                      ))}
+                  </ul>
+                  <p className="text-2xl font-bold text-blue-600 mb-5">₹{totalPrice}</p>
+                  <Link to={`/pc/${pc._id}`}>
+                    <button className="w-full bg-blue-500 text-white py-3 px-6 rounded-lg hover:bg-blue-600 transition duration-300 ease-in-out transform hover:scale-105">
+                      Buy Now
+                    </button>
+                  </Link>
+                </div>
               </div>
-            </div>
-          ))
+            )
+          })
         )}
       </div>
     </div>

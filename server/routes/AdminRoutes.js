@@ -2,6 +2,7 @@ import { Router } from "express";
 import { onlineUsers } from "../index.js";  // Access the global onlineUsers set
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
+import mongoose from "mongoose";
 import nodemailer from 'nodemailer';
 import twilio from "twilio";
 
@@ -11,8 +12,10 @@ import RefurbishedLaptop from "../models/RefurbishedLaptop.js";
 import MiniPC from "../models/MiniPC.js";
 import Order from "../models/Order.js";
 import DeviceInfo from "../models/DeviceInfo.js";
+import OfficePC from "../models/Office-PC.js";
 import LocationInfo from "../models/LocationInfo.js";
 import LoginHistory from "../models/LoginHistory.js";
+import Sales from "../models/Sales.js";
 
 const router = Router();
 
@@ -96,10 +99,11 @@ router.get("/admin/dashboard", async (req, res) => {
   try {
     const totalUsers = await User.countDocuments();
     const preBuiltCount = await PreBuiltPC.countDocuments();
+    const officePCCount = await OfficePC.countDocuments();
     const refurbishedCount = await RefurbishedLaptop.countDocuments();
     const miniPC = await MiniPC.countDocuments();
     const pendingOrders = await Order.countDocuments();
-    const totalProducts = preBuiltCount + refurbishedCount + miniPC; // Sum the total products
+    const totalProducts = preBuiltCount + officePCCount + refurbishedCount + miniPC; // Sum the total products
 
     const totalOnlineUsers = onlineUsers.size;
     // console.log("Total online users:", totalOnlineUsers);
@@ -124,6 +128,19 @@ router.get("/admin/login-history", async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "Failed to fetch login history" });
+  }
+});
+
+router.delete('/admin/clear-login-history', async (req, res) => {
+  try {
+    // Delete all login history from the database
+    await LoginHistory.deleteMany({});  // This will delete all documents in the 'loginHistory' collection
+
+    // Send a success response
+    res.status(200).json({ message: 'All login history has been deleted.' });
+  } catch (err) {
+    console.error('Error deleting login history:', err);
+    res.status(500).json({ message: 'Error deleting login history.' });
   }
 });
 
@@ -183,7 +200,6 @@ router.delete('/admin/users/:id', async (req, res) => {
   const { id } = req.params;
   try {
     await User.findByIdAndDelete(id);
-    const user = await User.find();
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "Failed to delete user" });
@@ -365,6 +381,88 @@ router.delete('/admin/location-info', async (req, res) => {
   } catch (err) {
     console.error('Error deleting location information:', err);
     res.status(500).json({ message: 'Error deleting location information.' });
+  }
+});
+
+router.get("/admin/sales", async (req, res) => {
+  try {
+    console.log("🔄 Fetching new orders and updating sales...");
+
+    // 🔍 Fetch all orders
+    const orders = await Order.find().lean();
+
+    // ✅ Process orders and create missing sales entries
+    for (const order of orders) {
+      const existingSale = await Sales.findOne({ orderId: order._id });
+
+      if (!existingSale) {
+        const newSale = new Sales({
+          orderId: order._id,
+          amount: order.totalPrice || 0, // Ensure valid amount
+        });
+
+        await newSale.save();
+        console.log(`✅ Sale recorded for Order ID: ${order._id}`);
+      }
+    }
+
+    // 📌 Fetch all sales after processing
+    const allSales = await Sales.find().populate("orderId", "date totalPrice");
+
+    if (allSales.length === 0) {
+      return res.json({ individualSales: [], salesByMonth: [], totalSales: 0 });
+    }
+
+    // 📊 Aggregate sales by month
+    const salesByMonth = await Sales.aggregate([
+      {
+        $lookup: {
+          from: "orders",
+          localField: "orderId",
+          foreignField: "_id",
+          as: "orderDetails",
+        },
+      },
+      { $unwind: "$orderDetails" },
+      {
+        $group: {
+          _id: { $month: "$orderDetails.date" }, // Group by month
+          totalSales: { $sum: "$amount" },
+        },
+      },
+      { $sort: { _id: 1 } },
+    ]);
+
+    // Format month names
+    const formattedSales = salesByMonth.map((s) => ({
+      month: new Date(2025, s._id - 1).toLocaleString("default", { month: "long" }),
+      sales: s.totalSales,
+    }));
+
+    // 📊 Calculate total sales
+    const totalSales = allSales.reduce((acc, sale) => acc + sale.amount, 0);
+
+    console.log("✅ Sales Data Updated & Fetched Successfully");
+    res.json({ individualSales: allSales, salesByMonth: formattedSales, totalSales });
+
+  } catch (error) {
+    console.error("❌ Error fetching and updating sales:", error);
+    res.status(500).json({ error: "Error fetching sales data" });
+  }
+});
+
+router.get("/admin/categories", async (req, res) => {
+  try {
+    const categories = await Order.aggregate([
+      { $unwind: "$product" },
+      { $group: { _id: "$product.category", totalSales: { $sum: "$totalPrice" } } },
+    ]);
+
+    console.log("✅ Category Sales Data:", categories);
+    res.json(categories);
+  } catch (error) {
+    console.error("❌ Error fetching category data:", error);
+    res.status(500).json({ error: "Error fetching category data" });
   }
 });
 

@@ -6,6 +6,7 @@ const orderSchema = new mongoose.Schema({
   date: { type: Date, default: Date.now },
   product: { type: Object, required: true },
   userDetails: { type: Object, required: true },
+  totalPrice: { type: Number, required: true },
   status: {
     type: String,
     enum: ['Pending', 'Processing', 'Shipped', 'Delivered', 'Cancelled', 'Confirmed'],
@@ -13,6 +14,6 @@ const orderSchema = new mongoose.Schema({
   },
   paymentMethod: String,
   deliveryDate: Date,
-});
+}, { timestamps: true });
 
 export default mongoose.model('Order', orderSchema);  

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { FaArrowDown, FaArrowUp } from 'react-icons/fa';
 import { io } from "socket.io-client";
 import DashboardGraphs from "./DashboardGraphs";
+import DiscountCode from './DiscountCode';
 
 const AdminPanel = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -32,6 +33,8 @@ const AdminPanel = () => {
     description: '',
     image: null,
     popularity: 0,
+    ram: '',
+    storage: '',
     ramOptions: [{ value: "", price: "" }],
     storage1Options: [{ value: "", price: "" }],
     storage2Options: [{ value: "", price: "" }],
@@ -59,28 +62,6 @@ const AdminPanel = () => {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [selectedOrders, setSelectedOrders] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
-
-  // Filter products based on the search term
-  // const filteredPreBuiltPCs = (products || []).filter(
-  //   (product) =>
-  //     product.type === 'Pre-Built PC' &&
-  //     (product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-  //       product.code.toLowerCase().includes(searchTerm.toLowerCase()))
-  // );
-
-  // const filteredRefurbishedLaptops = (products || []).filter(
-  //   (product) =>
-  //     product.type === 'Refurbished Laptop' &&
-  //     (product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-  //       product.code.toLowerCase().includes(searchTerm.toLowerCase()))
-  // );
-
-  // const filteredMiniPCs = (products || []).filter(
-  //   (product) =>
-  //     product.type === 'Mini PC' &&
-  //     (product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-  //       product.code.toLowerCase().includes(searchTerm.toLowerCase()))
-  // );
 
   // Filter orders based on the search query
   const filteredOrders = orders.filter(order =>
@@ -570,19 +551,17 @@ const AdminPanel = () => {
     if (["Pre-Built PC"].includes(formData.type)) {
       appendOptions(formData.ramOptions, "ramOptions");
       appendOptions(formData.storage1Options, "storage1Options");
-
-      if (formData.type === "Pre-Built PC") {
-        appendOptions(formData.storage2Options, "storage2Options");
-      }
+      appendOptions(formData.storage2Options, "storage2Options");
     }
 
 
     // Product-type-specific fields
     const productTypeFields = {
-      "pre-built PC": ["platform", "motherboard", "storage1", "storage2", "liquidcooler", "graphiccard", "smps", "cabinet"],
+      "pre-built PC": ["platform", "motherboard", "ramOptions", "storage1Options", "storage2Options",
+        "liquidcooler", "graphiccard", "smps", "cabinet"],
       "refurbished laptop": ["ram", "storage", "graphiccard", "display", "os", "condition"],
-      "mini PC": ["storage", "graphiccard", "motherboard", "smps", "cabinet"],
-      "office PC": ["platform", "motherboard", "storage", "graphiccard", "smps", "cabinet"],
+      "mini PC": ["platform", "ram", "storage", "graphiccard", "motherboard", "smps", "cabinet"],
+      "office PC": ["platform", "motherboard", "ram", "storage", "graphiccard", "smps", "cabinet"],
     };
 
     (productTypeFields[formData.type] || []).forEach((field) => {
@@ -808,12 +787,10 @@ const AdminPanel = () => {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${localStorage.getItem('token')}`,
         },
-        body: JSON.stringify({ deliveryDate: newDate }),
+        body: JSON.stringify({ deliveryDate: new Date(newDate).toISOString() }),
       });
 
       if (!response.ok) throw new Error('Failed to update delivery date');
-
-      const updatedOrder = await response.json();
 
       // Update the orders state
       setOrders((prevOrders) =>
@@ -1174,7 +1151,7 @@ const AdminPanel = () => {
                       Delete Selected Orders
                     </button>
 
-                    <div className="overflow-x-auto">
+                    <div className="md:overflow-x-auto max-h-[400px] overflow-y-auto">
                       <table className="w-full text-left text-gray-300">
                         <thead className="bg-gray-700">
                           <tr>
@@ -1244,7 +1221,7 @@ const AdminPanel = () => {
                               <td className="py-2 px-4">{order.paymentMethod}</td>
 
                               {/* Product Price */}
-                              <td className="py-2 px-4">₹{order.product.finalPrice}</td>
+                              <td className="py-2 px-4">₹{order.totalPrice}</td>
 
                               {/* Order Date */}
                               <td className="py-2 px-4">{new Date(order.date).toLocaleDateString()}</td>
@@ -1310,7 +1287,7 @@ const AdminPanel = () => {
               <div className="bg-gray-800 p-6 rounded-md shadow-md">
                 {/* User Table */}
                 {users && users.length > 0 ? (
-                  <div className="overflow-x-auto">
+                  <div className="overflow-x-auto max-h-[150px] overflow-y-auto">
                     <table className="w-full text-left border-collapse">
                       <thead>
                         <tr className="bg-gray-700">
@@ -1461,6 +1438,9 @@ const AdminPanel = () => {
               </form>
             </section>
 
+            {/* Discount code section */}
+            <DiscountCode />
+
             {/* Manage Products Section */}
             <section className="relative">
               <h2 className="text-2xl font-semibold mb-4">
@@ -1583,8 +1563,7 @@ const AdminPanel = () => {
                                           notes: product.notes,
                                           condition: product.condition,
                                           cpu: product.specs.cpu,
-                                          graphiccard: product.specs.graphiccard,
-                                          graphiccard: product.specs.GraphicCard,
+                                          graphiccard: product.specs.graphiccard || product.specs.GraphicCard,
                                           display: product.specs.display,
                                           os: product.specs.os,
                                           platform: product.specs.platform,

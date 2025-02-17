@@ -14,20 +14,10 @@ const miniPCSchema = new mongoose.Schema({
         platform: { type: String, required: true },
         cpu: { type: String, required: true },
         motherboard: { type: String, required: true },
-        ramOptions: [
-            {
-                value: { type: String, required: true },
-                price: { type: Number, required: true },
-            },
-        ],
-        storage1Options: [
-            {
-                value: { type: String, required: true },
-                price: { type: Number, required: true },
-            },
-        ],
-        graphiccard: { type: String, required: true },
-        smps: { type: String, required: true },
+        ram: { type: String, required: true },
+        storage: { type: String, required: true },
+        graphiccard: { type: String, },
+        smps: { type: String, },
         cabinet: { type: String, required: true },
     },
     otherTechnicalDetails: [
