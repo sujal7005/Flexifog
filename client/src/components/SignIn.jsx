@@ -29,20 +29,8 @@ const SignIn = () => {
     const user = localStorage.getItem('user');
     if (user) {
       const parsedUser = JSON.parse(user);
-      setUserId(parsedUser._id); // Assuming user object has an 'id' field
+      setUserId(parsedUser._id);
     }
-  }, []);
-
-  useEffect(() => {
-    google.accounts.id.initialize({
-      client_id: "902643667030-1l6l00sgj4lp7k7voht4rep5rr7svdfu.apps.googleusercontent.com",
-      callback: handleGoogleLoginSuccess,
-    });
-  
-    google.accounts.id.renderButton(
-      document.getElementById("google-login-btn"), 
-      { theme: "outline", size: "large" }
-    );
   }, []);
 
   const validateEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
@@ -123,7 +111,6 @@ const SignIn = () => {
 
     try {
       if (isSignUp) {
-        // Update the API URL to the correct port
         console.log({ name, email, password, phoneNumber });
         const response = await axios.post('http://localhost:4000/api/signup', { name, email, password, phoneNumber });
         if (response.data.success) {
@@ -144,52 +131,44 @@ const SignIn = () => {
         }
       }
     } catch (error) {
-      console.error("Sign up error: ", error.response?.data || error.message); // Log the error for debugging
+      console.error("Sign up error: ", error.response?.data || error.message);
       setError('An error occurred. Please try again.');
     }
   };
 
-  // Google login success handler
-  const handleGoogleLoginSuccess = async (response) => {
-    console.log("Google response:", response);
-    const { credential } = response;
+  // Google login success handler using @react-oauth/google
+  const handleGoogleLoginSuccess = async (credentialResponse) => {
+    console.log("Google response:", credentialResponse);
+    const { credential } = credentialResponse;
+    
     if (!credential) {
       console.error("No credential received!");
       return;
     }
 
     try {
-      // Fetch the access token from Google
-      const tokenClient = google.accounts.oauth2.initTokenClient({
-        client_id: "902643667030-1l6l00sgj4lp7k7voht4rep5rr7svdfu.apps.googleusercontent.com",
-        scope: "profile email https://www.googleapis.com/auth/user.phonenumbers.read",
-        callback: async (tokenResponse) => {
-          console.log("Access Token:", tokenResponse.access_token);
-
-          // Now send both ID token and access token to the backend
-          const res = await fetch("http://localhost:4000/api/google-signin", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              idToken: credential,       // ✅ Google ID token
-              accessToken: tokenResponse.access_token, // ✅ Access token for People API
-            }),
-          });
-
-          const data = await res.json();
-          console.log("Backend response:", data);
-          if (data.success) {
-            localStorage.setItem('user', JSON.stringify(data.user));
-            setUserId(data.user._id);
-            navigate('/profile');
-          } else {
-            setError(data.message || 'Google Sign-In failed');
-          }
-        },
+      // Send the ID token to your backend
+      const res = await fetch("http://localhost:4000/api/google-signin", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          idToken: credential,
+        }),
       });
 
-      tokenClient.requestAccessToken(); // 🔥 Request access token
-
+      const data = await res.json();
+      console.log("Backend response:", data);
+      
+      if (data.success) {
+        localStorage.setItem('user', JSON.stringify(data.user));
+        if (data.token) {
+          localStorage.setItem('token', data.token);
+        }
+        setUserId(data.user._id);
+        navigate('/profile');
+      } else {
+        setError(data.message || 'Google Sign-In failed');
+      }
     } catch (err) {
       setError(err.response?.data?.message || "An error occurred during Google login");
       console.error('Error during Google login:', err);
@@ -212,6 +191,9 @@ const SignIn = () => {
 
       if (res.data.success) {
         localStorage.setItem('user', JSON.stringify(res.data.user));
+        if (res.data.token) {
+          localStorage.setItem('token', res.data.token);
+        }
         setUserId(res.data.user._id);
         navigate('/profile');
       } else {
@@ -219,34 +201,13 @@ const SignIn = () => {
       }
     } catch (err) {
       setError('An error occurred during Facebook login');
-      console.error('Error during FaceBook login:', err);
+      console.error('Error during Facebook login:', err);
     }
   };
 
-  // Twitter login success handler
-  const handleTwitterLoginSuccess = async (response) => {
-    console.log("Twitter login response:", response);
-
-    const { oauth_token, oauth_token_secret } = response;
-
-    if (!oauth_token || !oauth_token_secret) {
-      console.error("Missing OAuth tokens");
-      setError("Twitter authentication failed. Missing OAuth tokens.");
-      return;
-    }
-
-    try {
-      const response = await axios.post('http://localhost:4000/api/twitter-signin', { oauth_token, oauth_token_secret });
-      if (response.data.url) {
-        window.location.href = response.data.url;
-        navigate('/profile');
-      } else {
-        setError(res.data.message || 'Twitter Sign-In failed');
-      }
-    } catch (err) {
-      setError('An error occurred during Twitter login');
-      console.error('Error during Twitter login:', err);
-    }
+  // Twitter login handler
+  const handleTwitterLogin = () => {
+    window.location.href = "http://localhost:4000/api/auth/twitter";
   };
 
   return (
@@ -276,7 +237,7 @@ const SignIn = () => {
                 onChange={(e) => setPhoneNumber(e.target.value)}
                 className="w-full px-4 py-2 bg-gray-700 text-gray-300 rounded focus:outline-none"
                 required
-                pattern="\+91[0-9]{10}" // Regex pattern for validation
+                pattern="\+91[0-9]{10}"
                 title="Phone number must start with +91 followed by 10 digits"
               />
             </>
@@ -319,61 +280,70 @@ const SignIn = () => {
           <button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-2 rounded">
             {isSignUp ? 'Sign Up' : 'Login'}
           </button>
+          
           <div className="mt-6 text-center">
-            <p className="text-gray-400">Or login with</p>
+            <p className="text-gray-400">Or continue with</p>
 
-            {/* Google Login */}
+            {/* Google Login using @react-oauth/google */}
             <GoogleOAuthProvider
               clientId={
-                import.meta.env.VITE_GOOGLE_CLIENT_ID ||
-                "902643667030-1l6l00sgj4lp7k7voht4rep5rr7svdfu.apps.googleusercontent.com"
+                import.meta.env.VITE_GOOGLE_CLIENT_ID || "627027876670-02ds81lfmg4afmrbem583fc2omtrldod.apps.googleusercontent.com"
               }
             >
-              <GoogleLogin
-                onSuccess={(credentialResponse) => handleGoogleLoginSuccess(credentialResponse)}
-                onError={() => console.log("Google Login Failed")}
-              />
+              <div className="mt-3">
+                <GoogleLogin
+                  onSuccess={handleGoogleLoginSuccess}
+                  onError={() => {
+                    console.log("Google Login Failed");
+                    setError("Google login failed. Please try again.");
+                  }}
+                  useOneTap
+                  theme="filled_black"
+                  shape="rectangular"
+                  size="large"
+                  width="100%"
+                  text="continue_with"
+                />
+              </div>
             </GoogleOAuthProvider>
 
             {/* Facebook Login */}
-            <FacebookLogin
-              appId={import.meta.env.VITE_FACEBOOK_APP_ID}
-              onSuccess={(response) => handleFacebookLoginSuccess(response)}
-              onFail={(error) => console.error("Facebook Login Failed:", error)}
-              onProfileSuccess={(profile) => console.log("Facebook Profile:", profile)}
-              render={({ onClick }) => (
-                <button
-                  onClick={onClick}
-                  className="w-full flex items-center bg-blue-600 text-white px-4 py-2 rounded-md shadow-md hover:bg-blue-700 transition duration-300 mt-2"
-                >
-                  {/* Facebook Icon */}
-                  <div className="bg-white rounded-full p-1 mr-3">
-                    <FaFacebook className="text-blue-600 text-2xl" />
-                  </div>
-                  {/* Centered Text */}
-                  <span className="flex-1 text-center font-semibold">
-                    Login with Facebook
-                  </span>
-                </button>
-              )}
-            />
+            <div className="mt-3">
+              <FacebookLogin
+                appId={import.meta.env.VITE_FACEBOOK_APP_ID}
+                onSuccess={handleFacebookLoginSuccess}
+                onFail={(error) => {
+                  console.error("Facebook Login Failed:", error);
+                  setError("Facebook login failed. Please try again.");
+                }}
+                render={({ onClick }) => (
+                  <button
+                    onClick={onClick}
+                    className="w-full flex items-center bg-[#1877f2] text-white px-4 py-3 rounded-lg hover:bg-[#166fe5] transition duration-300"
+                  >
+                    <div className="bg-white rounded-full p-1 mr-3">
+                      <FaFacebook className="text-[#1877f2] text-xl" />
+                    </div>
+                    <span className="flex-1 text-center font-medium">
+                      Continue with Facebook
+                    </span>
+                  </button>
+                )}
+              />
+            </div>
 
             {/* Twitter Login */}
             <button
-              // onClick={(response) => handleTwitterLoginSuccess(response)}
-              onClick={() => (window.location.href = "http://localhost:4000/api/auth/twitter")}
-              className="w-full flex items-center bg-blue-500 text-white px-4 py-2 rounded-md shadow-md hover:bg-blue-600 transition duration-300 mt-2"
+              onClick={handleTwitterLogin}
+              className="w-full flex items-center bg-[#1DA1F2] text-white px-4 py-3 rounded-lg hover:bg-[#1a8cd8] transition duration-300 mt-3"
             >
-              {/* Twitter Icon */}
               <div className="bg-white rounded-full p-1 mr-3">
-                <FaTwitter className="text-blue-500 text-2xl" />
+                <FaTwitter className="text-[#1DA1F2] text-xl" />
               </div>
-              {/* Centered Text */}
-              <span className="flex-1 text-center font-semibold">
-                Login with Twitter
+              <span className="flex-1 text-center font-medium">
+                Continue with Twitter
               </span>
             </button>
-
           </div>
         </form>
       ) : (
@@ -460,6 +430,7 @@ const SignIn = () => {
           </button>
         </form>
       )}
+      
       <p className="text-center mt-4">
         {!isForgotPassword ? (
           <>
@@ -489,9 +460,9 @@ const SignIn = () => {
           </button>
         )}
       </p>
-      {/* Display user ID or guest message */}
-      <p className="text-center mt-4">
-        {userId ? `User ID: ${userId}` : 'You are currently signed in as a guest.'}
+      
+      <p className="text-center mt-4 text-sm text-gray-400">
+        {userId ? `Logged in as user: ${userId}` : 'You are browsing as a guest.'}
       </p>
     </div>
   );

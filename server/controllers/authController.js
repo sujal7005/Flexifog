@@ -2,42 +2,47 @@ import { OAuth2Client } from 'google-auth-library';
 import axios from 'axios';
 import crypto from 'crypto';
 import jwt from "jsonwebtoken";
+import bcrypt from 'bcryptjs';
 import User from '../models/User.js';
 
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 // Google sign-in handler
 export const googleSignin = async (req, res) => {
   console.log("Received Google Sign-In request:", req.body);
-  const { idToken, accessToken } = req.body; // Extract Google token from request body
+  const { idToken } = req.body; // Only expect idToken, not accessToken
 
-  if (!idToken || !accessToken) {
-    return res.status(400).json({ success: false, message: "Missing credentials" });
+  // Generate random discount code
+  const generateDiscountCode = () => {
+    const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+    let code = "WELCOME-";
+    for (let i = 0; i < 6; i++) {
+      code += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return code;
+  };
+
+  if (!idToken) {
+    return res.status(400).json({ 
+      success: false, 
+      message: "Missing credentials - idToken is required" 
+    });
   }
 
   try {
     console.log("Verifying token...");
     const ticket = await client.verifyIdToken({
       idToken,
-      audience: process.env.GOOGLE_CLIENT_ID || "902643667030-1l6l00sgj4lp7k7voht4rep5rr7svdfu.apps.googleusercontent.com", // Ensure this matches your Google Cloud Client ID
+      audience: process.env.GOOGLE_CLIENT_ID,
     });
 
     console.log("Token verified!");
     const payload = ticket.getPayload();
     console.log("Decoded Payload:", payload);
-    const { sub: googleId, email, name } = payload;
-
-    // Fetch phone number from Google People API
-    const { data } = await axios.get(`https://people.googleapis.com/v1/people/me?personFields=phoneNumbers`, {
-      headers: { Authorization: `Bearer ${accessToken}` }
-    });
-    // Debugging: Check if phoneNumbers exist
-    console.log("Full API Response:", JSON.stringify(data, null, 2));
-
-    const phoneNumber = data.phoneNumbers?.[0]?.value || "Not Provided";
-    console.log("phone Number: ", phoneNumber);
+    const { sub: googleId, email, name, picture } = payload;
 
     // Check if user exists in your database
     let user = await User.findOne({ email });
+    
     if (!user) {
       console.log("User not found, creating new user...");
 
@@ -50,21 +55,48 @@ export const googleSignin = async (req, res) => {
         googleId,
         name, 
         email, 
-        password: 'google_user', 
-        phoneNumber, 
-        addresses: [],
+        password: await bcrypt.hash(googleId, 10), // Hash the googleId as password
+        phoneNumber: '', // Will need to be filled later
+        profilePicture: picture,
         discountCode,
         discountExpiresAt,
+        isEmailVerified: true, // Google emails are verified
       });
       await user.save();
     } else {
       console.log("User exists, logging in...");
+      // Update googleId if not set
+      if (!user.googleId) {
+        user.googleId = googleId;
+        user.profilePicture = picture || user.profilePicture;
+        await user.save();
+      }
     }
 
-    res.json({ success: true, user });
+    // Generate JWT token for the user
+    const token = jwt.sign(
+      { id: user._id, email: user.email },
+      process.env.JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+
+    // Return user data without password
+    const userData = user.toObject();
+    delete userData.password;
+
+    res.json({ 
+      success: true, 
+      user: userData, 
+      token 
+    });
+    
   } catch (error) {
     console.error("Google sign-in error:", error);
-    res.status(500).json({ success: false, message: "Google sign-in failed", error: error.message });
+    res.status(500).json({ 
+      success: false, 
+      message: "Google sign-in failed", 
+      error: error.message 
+    });
   }
 };
 
@@ -83,29 +115,54 @@ export const facebookSignin = async (req, res) => {
     .update(accessToken)
     .digest("hex");
 
+  // Generate random discount code
+  const generateDiscountCode = () => {
+    const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+    let code = "WELCOME-";
+
+    for (let i = 0; i < 6; i++) {
+      code += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+
+    return code;
+  };
+  
   try {
     // Verify accessToken with Facebook API
     const fbResponse = await axios.get(`https://graph.facebook.com/me?access_token=${accessToken}&fields=id,name,email,picture&appsecret_proof=${appsecret_proof}`);
     const { id, name, email } = fbResponse.data;
+    const phoneNumber = fbResponse.data.phoneNumbers?.[0]?.value || "Not Provided";
 
     let user = await User.findOne({ email });
 
     if (!user) {
+      // Generate discount code and expiration date
+      const discountCode = generateDiscountCode();
+      const discountExpiresAt = new Date();
+      discountExpiresAt.setDate(discountExpiresAt.getDate() + 7); // Expires in 7 days
+
       user = new User({
         facebookId: id,
         name,
         email: email || `fbuser${id}@facebook.com`,
         password: 'facebook_user', // Default password
-        phoneNumber: '',
+        phoneNumber,
         bonusPoints: 0,
-        discountCode: null,
-        discountExpiresAt: null,
+        discountCode,
+        discountExpiresAt,
         addresses: [],
       });
       await user.save();
     }
 
-    res.json({ success: true, user });
+    // Generate JWT token for the user
+    const token = jwt.sign(
+      { id: user._id, email: user.email },
+      process.env.JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+
+    res.json({ success: true, user, token });
   } catch (error) {
     console.error("Facebook Sign-in Error:", error);
     res.status(500).json({ success: false, message: 'Facebook sign-in failed' });

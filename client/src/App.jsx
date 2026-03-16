@@ -15,7 +15,6 @@ const Cart = lazy(() => import('./components/Cart'));
 const Home = lazy(() => import('./pages/Home'));
 const PreBuiltPCs = lazy(() => import('./pages/PreBuiltPCs'));
 const ProductDetails = lazy(() => import('./components/ProductDetails'));
-const CustomPC = lazy(() => import('./pages/CustomPC'));
 const About = lazy(() => import('./pages/About'));
 const Contact = lazy(() => import('./pages/Contact'));
 const Privacy = lazy(() => import('./pages/privacy'));
@@ -25,9 +24,20 @@ const Support = lazy(() => import('./pages/Support'));
 const SearchResults = lazy(() => import('./pages/SearchResults'));
 const Laptop = lazy(() => import('./pages/Laptop'));
 const MiniPC = lazy(() => import('./pages/MiniPCs'));
-const AllInOnePCs = lazy(() => import('./pages/AllInOnePCs'));
+const OfficePCs = lazy(() => import('./pages/office_pc.jsx'));
 const Payment = lazy(() => import('./components/Payment'));
 const AdminPanel = lazy(() => import('./components/AdminPanel'));
+const CategoryPage = lazy(() => import('./pages/Categories.jsx'));
+const Accessories = lazy(() => import('./pages/Accessories.jsx'));
+const MonitorsDisplays = lazy(() => import('./pages/MonitorsDisplays.jsx'));
+const Cameras = lazy(() => import('./pages/Cameras.jsx'));
+const Wearables = lazy(() => import('./pages/Wearables.jsx'));
+const Mobile_Tables = lazy(() => import('./pages/Mobiles_&_Tablets.jsx'));
+const TV_Entertainment = lazy(() => import('./pages/TV_&_Entertainment.jsx'));
+const Audio = lazy(() => import('./pages/Audio.jsx'));
+const PC_Components = lazy(() => import('./pages/PC_Components.jsx'));
+const Kitchen_Appliances = lazy(() => import('./pages/Kitchen_Appliances.jsx'));
+const Laundry_Cleaning = lazy(() => import('./pages/Laundry_&_Cleaning.jsx'));
 
 const App = () => {
   useEffect(() => {
@@ -36,13 +46,14 @@ const App = () => {
   }, []);
   const location = useLocation();
   const nodeRef = useRef(null);
+  const isAdminRoute = location.pathname === '/admin';
 
   return (
     <HelmetProvider>
       <div className="min-h-screen bg-gray-100 text-gray-800">
-        <Header />
+        {!isAdminRoute && <Header />}
         <Cookies />
-        <main className="container mx-auto py-8 px-4 mt-20">
+        <main className="pt-[80px]">
           <div ref={nodeRef}>
             <PageTransition in={true} nodeRef={nodeRef}>
               <Suspense fallback={
@@ -54,34 +65,72 @@ const App = () => {
                 </div>
               }>
                 <Routes location={location} key={location.pathname}>
-                  <Route path="/" element={<Home />} />
+                  <Route path="/about" element={<About />} />
                   <Route path='/admin' element={<AdminPanel />} />
-                  <Route path='/signin' element={<SignIn />} />
-                  <Route path='/profile' element={<Profile />} />
+                  <Route path='/accessories' element={<Accessories />} />
+                  {/* <Route path="/accessories/:subcategory" element={<Accessories />} /> */}
+                  <Route path='/accessories/:id' element={<ProductDetails />} />
                   <Route path='/cart' element={<Cart />} />
+
+                  <Route path="/categories" element={<CategoryPage />} />
+                  <Route path="/categories/laptops" element={<Laptop />} />
+                  <Route path="/categories/mobiles" element={<Mobile_Tables />} />
+                  <Route path="/categories/tvs" element={<TV_Entertainment />} />
+                  <Route path="/categories/displays" element={<MonitorsDisplays />} />
+                  <Route path="/categories/kitchenAppliances" element={<Kitchen_Appliances />} />
+                  <Route path="/categories/laundry" element={<Laundry_Cleaning />} />
+                  <Route path="/categories/accessories" element={<Accessories />} />
+                  <Route path="/categories/cameras" element={<Cameras />} />
+                  <Route path="/categories/wearables" element={<Wearables />} />
+                  <Route path="/categories/audio" element={<Audio />} />
+
+
+
+                  <Route path='/profile' element={<Profile />} />
                   <Route path="/prebuilt" element={<PreBuiltPCs />} />
                   <Route path="/mini-pcs" element={<MiniPC />} />
                   <Route path="/mini-pcs/:id" element={<ProductDetails />} />
-                  <Route path="/all-in-one-pcs" element={<AllInOnePCs />} />
+                  <Route path="/office-pcs" element={<OfficePCs />} />
+                  <Route path="/office-pc/:id" element={<ProductDetails />} />
                   <Route path="/pc/:id" element={<ProductDetails />} />
-                  <Route path="/refurbished/:id" element={<ProductDetails />} />
+                  <Route path="/laptops/:id" element={<ProductDetails />} />
+                  <Route path="/" element={<Home />} />
                   <Route path='/payment' element={<Payment />} />
                   <Route path='/laptops' element={<Laptop />} />
-                  <Route path="/custom" element={<CustomPC />} />
-                  <Route path="/about" element={<About />} />
                   <Route path="/contact" element={<Contact />} />
                   <Route path='/privacy' element={<Privacy />} />
                   <Route path='/terms' element={<Terms />} />
                   <Route path='/faq' element={<Faq />} />
                   <Route path='/support' element={<Support />} />
                   <Route path="/search" element={<SearchResults />} />
+                  <Route path='/signin' element={<SignIn />} />
                   <Route path="/7hubcomputer-details" element={<HubComputerDetails />} />
+                  <Route path='/displays' element={<MonitorsDisplays />} />
+                  <Route path='/displays/:id' element={<ProductDetails />} />
+                  <Route path='/cameras' element={<Cameras />} />
+                  <Route path='/cameras/:id' element={<ProductDetails />} />
+                  <Route path='/wearables' element={<Wearables />} />
+                  <Route path='/wearables/:id' element={<ProductDetails />} />
+                  <Route path='/mobiles' element={<Mobile_Tables />} />
+                  <Route path='/mobiles/:id' element={<ProductDetails />} />
+                  <Route path='/tvs' element={<TV_Entertainment />} />
+                  <Route path='/tv/:id' element={<ProductDetails />} />
+                  <Route path='/audio' element={<Audio />} />
+                  <Route path='/audio/:id' element={<ProductDetails />} />
+                  <Route path='/audio/:subcategory' element={<Audio />} />
+
+                  <Route path='/components' element={<PC_Components />} />
+                  <Route path='/components/:id' element={<ProductDetails />} />
+                  <Route path='/kitchen' element={<Kitchen_Appliances />} />
+                  <Route path='/kitchen/:id' element={<ProductDetails />} />
+                  <Route path='/laundry' element={<Laundry_Cleaning />} />
+                  <Route path='/laundry/:id' element={<ProductDetails />} />
                 </Routes>
               </Suspense>
             </PageTransition>
           </div>
         </main>
-        <Footer />
+        {!isAdminRoute && <Footer />}
       </div>
     </HelmetProvider>
   );

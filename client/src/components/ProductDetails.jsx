@@ -3,34 +3,75 @@ import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { useStripe } from '@stripe/react-stripe-js';
 import { CartContext } from '../context/CartContext';
+import { motion, AnimatePresence } from 'framer-motion';
+import { 
+  FaShoppingCart, 
+  FaBolt, 
+  FaStar, 
+  FaRegStar, 
+  FaStarHalfAlt,
+  FaCheck,
+  FaShieldAlt,
+  FaTruck,
+  FaUndo,
+  FaHeadphones,
+  FaShare,
+  FaHeart,
+  FaRegHeart,
+  FaFacebook,
+  FaTwitter,
+  FaWhatsapp,
+  FaEnvelope,
+  FaPrint,
+  FaDownload,
+  FaPlus,
+  FaMinus,
+  FaArrowLeft,
+  FaArrowRight,
+  FaTimes,
+  FaCamera,
+  FaClipboardList,
+  FaBoxOpen,
+  FaCalendarAlt,
+  FaTag,
+  FaRulerCombined,
+  FaWeightHanging,
+  FaPalette,
+  FaMicrochip,
+  FaMemory,
+  FaHdd,
+  FaBolt as FaPower,
+  FaWifi,
+  FaBluetoothB,
+  FaGift,
+  FaAward,
+  FaCertificate
+} from 'react-icons/fa';
 
 const ProductDetails = () => {
   const stripe = useStripe();
   const { id } = useParams();
   const location = useLocation();
-  const isRefurbished = location.pathname.includes('refurbished');
-  const isMiniPC = location.pathname.includes('mini-pcs');
-
-  const productType = isRefurbished
-    ? 'refurbished-laptop'
-    : isMiniPC
-      ? 'Mini PC'
-      : 'Pre-Built PC';
-
-  const productId = id;
-
+  const navigate = useNavigate();
+  
   const [product, setProduct] = useState(null);
   const [quantity, setQuantity] = useState(1);
   const [loading, setLoading] = useState(true);
-  const { addToCart, isLoggedIn, updateQuantity } = useContext(CartContext);
-  const navigate = useNavigate();
+  const [error, setError] = useState(null);
+  const { addToCart, updateQuantity } = useContext(CartContext);
 
   const [paymentError, setPaymentError] = useState('');
   const [paymentSuccess, setPaymentSuccess] = useState('');
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [showLargeImage, setShowLargeImage] = useState(false);
   const [modalImageIndex, setModalImageIndex] = useState(null);
-  const { image: images = [], name, code, description, condition, specs = {}, finalPrice, originalPrice, discount, otherTechnicalDetails: otherDetails, bonuses, reviews: initialReviews = [] } = product || {};
+  const [isWishlisted, setIsWishlisted] = useState(false);
+  const [showShareOptions, setShowShareOptions] = useState(false);
+  const [activeTab, setActiveTab] = useState('description');
+  const [zoomPosition, setZoomPosition] = useState({ x: 0, y: 0 });
+  const [showZoom, setShowZoom] = useState(false);
+  const [selectedColor, setSelectedColor] = useState(null);
+  const [selectedSpecs, setSelectedSpecs] = useState({});
 
   const [reviews, setReviews] = useState([]);
   const [reviewRating, setReviewRating] = useState(0);
@@ -38,265 +79,416 @@ const ProductDetails = () => {
   const reviewsSectionRef = useRef(null);
   const [newImage, setNewImage] = useState(null);
   const [imageFile, setImageFile] = useState(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const imageRef = useRef(null);
+  const [relatedProducts, setRelatedProducts] = useState([]);
 
-  const [selectedSpecs, setSelectedSpecs] = useState({
-    ramOptions: "",
-    storage1Options: "",
-    storage2Options: "",
-  });
+  const BASE_URL = `http://${window.location.hostname}:4000`;
 
-  useEffect(() => {
-    if (specs && specs.ramOptions && specs.storage1Options && specs.storage2Options) {
-      setSelectedSpecs({
-        ramOptions: specs.ramOptions[0]?._id || "",
-        storage1Options: specs.storage1Options[0]?._id || "",
-        storage2Options: specs.storage2Options[0]?._id || "",
-      });
+  // Animation variants
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.1
+      }
     }
-  }, [specs]); // This will run when specs change
+  };
 
+  const itemVariants = {
+    hidden: { y: 20, opacity: 0 },
+    visible: {
+      y: 0,
+      opacity: 1
+    }
+  };
+
+  // Determine product type from URL path
+  const getProductType = () => {
+    const path = location.pathname;
+    if (path.includes('refurbished')) return 'refurbished';
+    if (path.includes('mini-pcs')) return 'mini-pc';
+    if (path.includes('prebuilt')) return 'prebuilt';
+    if (path.includes('office-pc')) return 'office-pc';
+    if (path.includes('accessories')) return 'accessory';
+    if (path.includes('audio')) return 'audio';
+    if (path.includes('cameras')) return 'camera';
+    if (path.includes('kitchen')) return 'kitchen';
+    if (path.includes('laundry')) return 'laundry';
+    if (path.includes('mobiles')) return 'mobile';
+    if (path.includes('displays')) return 'display';
+    if (path.includes('components')) return 'component';
+    if (path.includes('tv')) return 'tv';
+    if (path.includes('wearables')) return 'wearable';
+    return 'product';
+  };
+
+  // Get the correct API endpoint based on product type
+  const getApiEndpoint = () => {
+    const type = getProductType();
+
+    console.log('Product type detected:', type); // Debug log
+  
+    // First, let's check if we're on a PC product route
+    const path = location.pathname;
+    console.log('Current path:', path); // Debug log
+
+    const endpoints = {
+      // PC Products - Need to fetch from the products API
+      'refurbished': `${BASE_URL}/api/admin/products?type=refurbished`,
+      'mini-pc': `${BASE_URL}/api/admin/products?type=mini-pc`,
+      'prebuilt': `${BASE_URL}/api/admin/products?type=prebuilt`,
+      'office-pc': `${BASE_URL}/api/admin/products?type=office-pc`,
+
+      // Other products - Direct ID-based endpoints
+      'accessory': `${BASE_URL}/api/accessories/${id}`,
+      'audio': `${BASE_URL}/api/audio/${id}`,
+      'camera': `${BASE_URL}/api/cameras/${id}`,
+      'kitchen': `${BASE_URL}/api/kitchen/${id}`,
+      'laundry': `${BASE_URL}/api/laundry/${id}`,
+      'mobile': `${BASE_URL}/api/mobiles/${id}`,
+      'display': `${BASE_URL}/api/displays/${id}`,
+      'component': `${BASE_URL}/api/components/${id}`,
+      'tv': `${BASE_URL}/api/tv/${id}`,
+      'wearable': `${BASE_URL}/api/wearables/${id}`,
+    };
+    
+    return endpoints[type]  || `${BASE_URL}/api/admin/products`;;
+  };
+
+  // Fetch product data
   useEffect(() => {
-    const fetchProduct = async (page = 1, limit = 10) => {
+    const fetchProduct = async () => {
       try {
-        const response = await fetch(`http://localhost:4000/api/admin/products?page=${page}&limit=${limit}`);
-        if (response.ok) {
-          const data = await response.json();
-
-          let productItem;
-
-          if (isRefurbished) {
-            productItem = data.refurbishedProducts.find((item) => item._id === id);
-          } else if (isMiniPC) {
-            productItem = data.miniPCs.find((item) => item._id === id);
-          } else {
-            productItem = [...data.prebuildPC, ...data.officePC].find((item) => item._id === id);
-          }
-
-          console.log('Found Product:', productItem);
-
-          if (productItem) {
-            setProduct(productItem);  // Set the found product
-            setReviews(productItem.reviews || []);  // Set reviews for that product
-          } else {
-            console.log('Product not found in the selected category');
-            setProduct(null);
-          }
-        } else {
-          console.log('Product not found in the API');
-          setProduct(null);
+        setLoading(true);
+        setError(null);
+      
+        const endpoint = getApiEndpoint();
+        console.log('Fetching from:', endpoint);
+      
+        const response = await fetch(endpoint);
+      
+        if (!response.ok) {
+          throw new Error(`Failed to fetch product: ${response.status}`);
         }
-      } catch (error) {
-        console.error('Error fetching product:', error);
+      
+        const data = await response.json();
+        console.log('API Response:', data);
+      
+        let productData = null;
+
+         // Handle different response structures based on product type
+      const type = getProductType();
+      
+              if (data.success) {
+        // Check for type-specific product fields
+        if (type === 'accessory' && data.accessory) {
+          productData = data.accessory;
+          console.log('Found accessory data');
+        } else if (type === 'audio' && data.audio) {
+          productData = data.audio;
+        } else if (type === 'camera' && data.camera) {
+          productData = data.camera;
+        } else if (type === 'kitchen' && data.kitchenAppliance) {
+          productData = data.kitchenAppliance;
+        } else if (type === 'laundry' && data.laundryAppliance) {
+          productData = data.laundryAppliance;
+        } else if (type === 'mobile' && data.mobile) {
+          productData = data.mobile;
+        } else if (type === 'display' && data.display) {
+          productData = data.display;
+        } else if (type === 'component' && data.component) {
+          productData = data.component;
+        } else if (type === 'tv' && data.tv) {
+          productData = data.tv;
+        } else if (type === 'wearable' && data.wearable) {
+          productData = data.wearable;
+        } else if (data.product) {
+          productData = data.product;
+        } else if (data.products && Array.isArray(data.products)) {
+          productData = data.products.find(p => p._id === id || p.id === id);
+        } else if (data.data && Array.isArray(data.data)) {
+          productData = data.data.find(p => p._id === id || p.id === id);
+        }
+      } else if (data._id || data.id) {
+        productData = data;
+      } else if (Array.isArray(data)) {
+        productData = data.find(p => p._id === id || p.id === id);
+      }
+
+      // Special handling for PC products that might be in different arrays
+      if (!productData && data.prebuildPC) {
+        productData = data.prebuildPC.find(p => p._id === id);
+      }
+      if (!productData && data.officePC) {
+        productData = data.officePC.find(p => p._id === id);
+      }
+      if (!productData && data.miniPCs) {
+        productData = data.miniPCs.find(p => p._id === id);
+      }
+      if (!productData && data.refurbishedProducts) {
+        productData = data.refurbishedProducts.find(p => p._id === id);
+      }
+
+      if (productData) {
+        console.log('Product found:', productData);
+        
+        // Ensure image is always an array
+        if (productData.image && !Array.isArray(productData.image)) {
+          productData.image = [productData.image];
+        } else if (!productData.image) {
+          productData.image = [];
+        }
+        
+        setProduct(productData);
+        setReviews(productData.reviews || []);
+        
+        // Initialize selected specs
+        if (productData.specs) {
+          const initialSpecs = {};
+          Object.entries(productData.specs).forEach(([key, value]) => {
+            if (Array.isArray(value) && value.length > 0) {
+              initialSpecs[key] = value[0]._id || value[0].value;
+            }
+          });
+          setSelectedSpecs(initialSpecs);
+        }
+        
+        // Set default color if available
+        if (productData.specs?.colors?.length > 0) {
+          setSelectedColor(productData.specs.colors[0]);
+        }
+        
+        // Fetch related products
+        fetchRelatedProducts(productData.type, productData.category, productData._id);
+      } else {
+        console.log('Product not found in response');
+        setError('Product not found');
+      }
+      } catch (err) {
+        console.error('Error fetching product:', err);
+        setError(err.message);
       } finally {
         setLoading(false);
       }
     };
-
-    fetchProduct(1, 10);
-  }, [id, isRefurbished, isMiniPC]);
+  
+    const fetchRelatedProducts = async (type, category, currentId) => {
+      try {
+        // Only fetch if we have valid parameters
+        if (!type && !category) return;
+      
+        // Determine the correct endpoint based on product type
+        let endpoint = '';
+      
+        // Map type to correct API endpoint
+        if (type?.toLowerCase().includes('tv')) {
+          endpoint = `${BASE_URL}/api/tv?limit=4`;
+        } else if (type?.toLowerCase().includes('display') || type?.toLowerCase().includes('monitor')) {
+          endpoint = `${BASE_URL}/api/displays?limit=4`;
+        } else if (type?.toLowerCase().includes('mobile') || type?.toLowerCase().includes('phone')) {
+          endpoint = `${BASE_URL}/api/mobiles?limit=4`;
+        } else if (type?.toLowerCase().includes('audio')) {
+          endpoint = `${BASE_URL}/api/audio?limit=4`;
+        } else if (type?.toLowerCase().includes('camera')) {
+          endpoint = `${BASE_URL}/api/cameras?limit=4`;
+        } else if (type?.toLowerCase().includes('component')) {
+          endpoint = `${BASE_URL}/api/components?limit=4`;
+        } else if (type?.toLowerCase().includes('accessory')) {
+          endpoint = `${BASE_URL}/api/accessories?limit=4`;
+        } else if (type?.toLowerCase().includes('kitchen')) {
+          endpoint = `${BASE_URL}/api/kitchen?limit=4`;
+        } else if (type?.toLowerCase().includes('laundry')) {
+          endpoint = `${BASE_URL}/api/laundry?limit=4`;
+        } else if (type?.toLowerCase().includes('wearable')) {
+          endpoint = `${BASE_URL}/api/wearables?limit=4`;
+        } else {
+          // For PC products, use the products API
+          endpoint = `${BASE_URL}/api/admin/products?limit=4`;
+        }
+      
+        const response = await fetch(endpoint);
+      
+        if (!response.ok) {
+          throw new Error('Failed to fetch related products');
+        }
+      
+        const data = await response.json();
+      
+        // Handle different response structures
+        let relatedItems = [];
+        if (data.success) {
+          // Handle PC products response
+          if (data.prebuildPC) relatedItems = [...relatedItems, ...data.prebuildPC];
+          if (data.officePC) relatedItems = [...relatedItems, ...data.officePC];
+          if (data.miniPCs) relatedItems = [...relatedItems, ...data.miniPCs];
+          if (data.refurbishedProducts) relatedItems = [...relatedItems, ...data.refurbishedProducts];
+          if (data.products) relatedItems = [...relatedItems, ...data.products];
+        } else if (Array.isArray(data)) {
+          relatedItems = data;
+        } else if (data.data && Array.isArray(data.data)) {
+          relatedItems = data.data;
+        }
+      
+        // Filter out the current product
+        const filtered = relatedItems.filter(item => item._id !== currentId);
+        setRelatedProducts(filtered.slice(0, 4));
+      
+      } catch (error) {
+        console.error('Error fetching related products:', error);
+        // Don't set error state for related products - just log it
+      }
+    };
+  
+    if (id) {
+      fetchProduct();
+    }
+  }, [id, location.pathname]);
 
   // Auto-scrolling for images
   useEffect(() => {
-    if (images.length === 0) return;
+    if (!product?.image?.length) return;
 
     const interval = setInterval(() => {
       setCurrentImageIndex((prevIndex) =>
-        prevIndex === images.length - 1 ? 0 : prevIndex + 1
+        prevIndex === product.image.length - 1 ? 0 : prevIndex + 1
       );
-    }, 3400); // Change image every 3 seconds
+    }, 5000);
 
-    // Clean up interval on component unmount
     return () => clearInterval(interval);
-  }, [images]);
+  }, [product?.image]);
+
+  const handleMouseMove = (e) => {
+    if (!imageRef.current) return;
+    const { left, top, width, height } = imageRef.current.getBoundingClientRect();
+    const x = ((e.clientX - left) / width) * 100;
+    const y = ((e.clientY - top) / height) * 100;
+    setZoomPosition({ x, y });
+  };
 
   if (loading) {
-    return <p>Loading...</p>;
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex items-center justify-center">
+        <div className="text-center">
+          <div className="relative">
+            <div className="w-20 h-20 border-4 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin mx-auto mb-4"></div>
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="w-10 h-10 bg-indigo-500 rounded-full animate-pulse"></div>
+            </div>
+          </div>
+          <p className="text-white text-lg font-medium mt-4">Loading product details...</p>
+          <p className="text-gray-400 text-sm mt-2">Please wait while we prepare your product</p>
+        </div>
+      </div>
+    );
   }
 
-  if (!product) {
-    console.log('Product is null or undefined');
-    return <p className='text-amber-700'>Product not found</p>;
+  if (error || !product) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex items-center justify-center">
+        <div className="text-center bg-gray-800/50 backdrop-blur-sm p-8 rounded-2xl border border-gray-700 max-w-md">
+          <div className="text-red-500 text-6xl mb-4">😕</div>
+          <p className="text-red-400 text-xl mb-4">{error || 'Product not found'}</p>
+          <p className="text-gray-400 mb-6">The product you're looking for doesn't exist or has been removed.</p>
+          <button
+            onClick={() => navigate(-1)}
+            className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-8 py-3 rounded-lg font-semibold hover:from-indigo-700 hover:to-purple-700 transition transform hover:scale-105 shadow-lg"
+          >
+            Go Back
+          </button>
+        </div>
+      </div>
+    );
   }
+
+  const images = product.image || [];
+  const {
+    name,
+    code,
+    description,
+    condition,
+    specs = {},
+    finalPrice,
+    originalPrice,
+    discount,
+    otherTechnicalDetails = [],
+    bonuses,
+    inStock,
+    rating = 0,
+    reviewCount = reviews.length,
+    brand,
+    warranty,
+    features = []
+  } = product;
 
   const handleIncrease = () => {
-    setQuantity((prev) => prev + 1);
+    setQuantity(prev => prev + 1);
     updateQuantity(product.id, quantity + 1);
   };
 
   const handleDecrease = () => {
     if (quantity > 1) {
-      setQuantity((prev) => prev - 1);
+      setQuantity(prev => prev - 1);
       updateQuantity(product.id, quantity - 1);
     }
   };
 
-  // Function to calculate the price of the selected specs
   const getSelectedSpecsPrice = () => {
-    let finalPrice = product.finalPrice;  // Initialize finalPrice within the function
+    let price = finalPrice || product.price || 0;
 
-    // console.log("Selected Specs:", selectedSpecs);
-    // console.log("Product Specs:", product.specs);
-
-    // Iterate through the selected specs and calculate their prices
     Object.entries(selectedSpecs).forEach(([category, selectedValue]) => {
-      // console.log("Checking category:", category);  // Log the category being checked
-
-      const specOptions = product.specs[category];  // Get options for the category
-      if (specOptions) {
-        const selectedOption = specOptions.find((option) => option._id === selectedValue);  // Match by _id
+      const specOptions = specs[category];
+      if (specOptions && Array.isArray(specOptions)) {
+        const selectedOption = specOptions.find(opt => opt._id === selectedValue || opt.value === selectedValue);
         if (selectedOption) {
-          finalPrice += selectedOption.price || 0;  // Add price to final price
-        } else {
-          // console.log(`No option found for selected value: ${selectedValue} in category: ${category}`);
+          price += selectedOption.price || 0;
         }
-      } else {
-        console.log(`No specs found for category: ${category}`);
       }
     });
 
-    // console.log("Final Price Calculated:", finalPrice);
-    return finalPrice;  // Return the calculated finalPrice
+    return price;
   };
 
-  // Handler for spec change
-  const handleSpecChange = (category, value, isOther = false) => {
-    if (isOther) {
-      // Handle "Other" input value separately
-      setSelectedSpecs(prevState => ({
-        ...prevState,
-        [`other_${category}`]: value, // Store the "Other" input value separately
-      }));
-    } else {
-      // Handle dropdown value (e.g., RAM, Storage1, Storage2)
-      setSelectedSpecs(prevState => ({
-        ...prevState,
-        [category]: value, // Store the selected dropdown value
-      }));
-    }
+  const handleSpecChange = (category, value) => {
+    setSelectedSpecs(prev => ({
+      ...prev,
+      [category]: value,
+    }));
   };
 
   const handlePreviousImage = () => {
     if (images.length > 0) {
-      setCurrentImageIndex((prevIndex) =>
-        prevIndex === 0 ? images.length - 1 : prevIndex - 1
-      );
+      setCurrentImageIndex(prev => (prev === 0 ? images.length - 1 : prev - 1));
     }
   };
 
   const handleNextImage = () => {
     if (images.length > 0) {
-      setCurrentImageIndex((prevIndex) =>
-        prevIndex === images.length - 1 ? 0 : prevIndex + 1
-      );
+      setCurrentImageIndex(prev => (prev === images.length - 1 ? 0 : prev + 1));
     }
   };
 
   const handleAddToCart = () => {
     addToCart(product);
-    console.log(`${product.name} added to cart`);
-    navigate('/cart')
+    navigate('/cart');
   };
 
-  const getStarRating = (rating) => {
-    const stars = [];
-    // Determine the full, half, and empty stars based on the rating
-    for (let i = 1; i <= 5; i++) {
-      if (rating >= i) {
-        stars.push('full'); // Full star
-      } else if (rating >= i - 0.5) {
-        stars.push('half'); // Half star
-      } else {
-        stars.push('empty'); // Empty star
-      }
-    }
-    return stars;
+  const getImageUrl = (imagePath) => {
+    if (!imagePath) return '/placeholder-image.jpg';
+    const filename = imagePath.split(/[\\/]/).pop();
+    return `${BASE_URL}/uploads/${filename}`;
   };
 
-  const stars = getStarRating(product.rating); // Assuming product.rating is available
-
-  const handleStarClick = (star) => {
-    setReviewRating(star);  // Set review rating
-    if (reviewsSectionRef.current) {
-      // Scroll to the reviews section
-      reviewsSectionRef.current.scrollIntoView({ behavior: 'smooth' });
-    }
-  };
-
-  const handleImageChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      console.log('Selected file:', file);
-      const previewURL = URL.createObjectURL(file); // Generate a preview URL for the image
-      setNewImage(previewURL); // Update the state with the preview URL
-      setImageFile(file);
-    }
-  };
-
-  const handleAddReview = async () => {
-    if (newReview.trim()) {
-
-      const user = JSON.parse(localStorage.getItem('user')); // Example: Get from localStorage
-      const reviewerName = user?.name || 'Anonymous';
-
-      const formData = new FormData();
-      formData.append('reviewerName', reviewerName);
-      formData.append('text', newReview);
-      formData.append('rating', reviewRating);
-
-      // Check if the image is properly selected
-      if (imageFile) {
-        formData.append('image', imageFile); // Append the File object
-      } else {
-        console.error('No valid image selected');
-      }
-
-      // Debug: Log the FormData contents
-      for (let pair of formData.entries()) {
-        console.log(`${pair[0]}:`, pair[1]);
-      }
-
-      try {
-
-        const response = await fetch(`${process.env.REACT_APP_API_URL}/api/admin/products/${encodeURIComponent(productType)}/${encodeURIComponent(productId)}`, {
-          method: 'PUT',
-          headers: {
-            Authorization: `Bearer ${user.token}`,
-          },
-          body: formData,
-        });
-
-        if (response.ok) {
-          const data = await response.json();
-          console.log("Server response:", data);
-          // Update the reviews state with the new review
-          if (data && data.review) {
-            // Update reviews state with the new review if it's present in the response
-            setReviews([...reviews, data.review]);
-            setNewReview(""); // Clear the review input
-            setNewImage(null); // Clear the image
-            setReviewRating(0);
-          }
-        } else {
-          console.error('Failed to submit review');
-        }
-      } catch (error) {
-        console.error('Error submitting review:', error);
-      }
-    }
-  };
-
-  const downloadQuotation = async (productId, productName) => {
+  const downloadQuotation = async () => {
     try {
-      const response = await fetch(`http://localhost:4000/api/download-quotation/${productId}`);
-
+      const response = await fetch(`${BASE_URL}/api/download-quotation/${product._id}`);
       if (!response.ok) throw new Error("Failed to fetch quotation");
 
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `Quotation-${productName}.pdf`;
+      a.download = `Quotation-${product.name}.pdf`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -305,12 +497,8 @@ const ProductDetails = () => {
     }
   };
 
-  const handleConfirmPayment = async () => {
-    navigate('/payment', { state: { product } });
-    // if (isLoggedIn) {
-    // } else {
-    //   navigate('/signin');
-    // }
+  const handleConfirmPayment = () => {
+    navigate('/payment', { state: { product, quantity, selectedSpecs } });
   };
 
   const handleThumbnailClick = (index) => {
@@ -323,410 +511,893 @@ const ProductDetails = () => {
     setModalImageIndex(null);
   };
 
+  const renderStars = (rating) => {
+    const stars = [];
+    const fullStars = Math.floor(rating);
+    const hasHalfStar = rating % 1 >= 0.5;
+
+    for (let i = 0; i < fullStars; i++) {
+      stars.push(<FaStar key={`full-${i}`} className="text-yellow-400" />);
+    }
+    if (hasHalfStar) {
+      stars.push(<FaStarHalfAlt key="half" className="text-yellow-400" />);
+    }
+    for (let i = stars.length; i < 5; i++) {
+      stars.push(<FaRegStar key={`empty-${i}`} className="text-yellow-400" />);
+    }
+    return stars;
+  };
+
+  const shareProduct = (platform) => {
+    const url = window.location.href;
+    const text = `Check out this product: ${product.name}`;
+    
+    const shareUrls = {
+      facebook: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`,
+      twitter: `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`,
+      whatsapp: `https://wa.me/?text=${encodeURIComponent(text + ' ' + url)}`,
+      email: `mailto:?subject=${encodeURIComponent(product.name)}&body=${encodeURIComponent(text + '\n\n' + url)}`
+    };
+
+    if (shareUrls[platform]) {
+      window.open(shareUrls[platform], '_blank', 'width=600,height=400');
+    }
+  };
+
+  const currentPrice = getSelectedSpecsPrice();
+
   return (
     <>
       <Helmet>
-        <title>{product ? `${product.name} | 7HubComputers` : "Product Details"}</title>
-        <meta name="description" content={product?.description || "Product details page"} />
-        <meta property="og:title" content={product?.name || "Product Details"} />
-        <meta property="og:description" content={product?.description || "Product details page"} />
-        <meta property="og:image" content={images?.[0] ? `http://localhost:4000/uploads/${images[0]}` : "default-image-url"} />
+        <title>{name} | 7HubComputers - Premium Electronics</title>
+        <meta name="description" content={description} />
+        <meta property="og:title" content={name} />
+        <meta property="og:description" content={description} />
+        <meta property="og:image" content={images[0] ? getImageUrl(images[0]) : ''} />
+        <meta property="og:url" content={window.location.href} />
+        <meta name="twitter:card" content="summary_large_image" />
       </Helmet>
-      <div className={`flex flex-col md:flex-row justify-start items-start p-5 md:p-10 bg-gray-900 text-white min-h-screen ${isModalOpen ? 'blur-sm' : ''}`}>
-        {/* Left Section - Image Slider */}
-        <div className="w-full md:w-1/3 flex flex-col justify-start items-center relative mb-5 md:mb-0 md:sticky top-20 z-2">
-          <div className="relative w-full flex justify-center">
-            {Array.isArray(images) && images.length > 0 ? (
-              <div className="relative w-full h-[30em] flex justify-center items-center">
-                {/* Badge for Refurbished Laptop */}
-                {product.type === "Refurbished Laptop" && (
-                  <div className="absolute top-2 left-2 bg-red-600 text-white text-sm font-bold px-3 py-1 rounded-lg shadow-lg z-10 shadow-[0_0_20px_4px_rgba(255,0,0,0.8)]">
-                    Refurbished
-                  </div>
-                )}
 
-                {images.map((image, index) => {
-                  // Check if image is a string and sanitize the file name
-                  const sanitizedPath = typeof image === "string" ? image.split(/\\|\//).pop() : "";
-
-                  return (
-                    <img
-                      key={index}
-                      src={`http://localhost:4000/uploads/${sanitizedPath}`}
-                      alt={`${product.name} - Image ${index + 1}`}
-                      onClick={() => handleThumbnailClick(index)}
-                      loading='lazy'
-                      className={`absolute w-auto h-full object-cover transition-opacity duration-1000 ease-in-out ${index === currentImageIndex ? "opacity-100" : "opacity-0"
-                        }`}
-                    />
-                  );
-                })}
-              </div>
-            ) : (
-              <p>No images available</p>
-            )}
-            {/* Slider Controls */}
-            {images.length > 1 && (
-              <>
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white">
+        {/* Floating Header */}
+        <div className="sticky top-0 z-40 bg-gray-900/95 backdrop-blur-md border-b border-gray-800">
+          <div className="container mx-auto px-4 py-3">
+            <div className="flex items-center justify-between">
+              <button
+                onClick={() => navigate(-1)}
+                className="flex items-center gap-2 text-gray-400 hover:text-white transition group"
+              >
+                <FaArrowLeft className="group-hover:-translate-x-1 transition" />
+                <span>Back</span>
+              </button>
+              <div className="flex items-center gap-4">
                 <button
-                  onClick={handlePreviousImage}
-                  className="absolute left-0 top-1/2 transform -translate-y-1/2 bg-gray-700 bg-opacity-50 p-2 rounded-full text-white"
+                  onClick={() => setIsWishlisted(!isWishlisted)}
+                  className="text-gray-400 hover:text-red-500 transition"
                 >
-                  ‹
+                  {isWishlisted ? <FaHeart className="text-red-500" /> : <FaRegHeart />}
                 </button>
-                <button
-                  onClick={handleNextImage}
-                  className="absolute right-0 top-1/2 transform -translate-y-1/2 bg-gray-700 bg-opacity-50 p-2 rounded-full text-white"
-                >
-                  ›
-                </button>
-              </>
-            )}
-          </div>
-          {/* Image Indicators */}
-          <div className="flex space-x-2 mt-3">
-            {images.map((_, index) => (
-              <div
-                key={index}
-                className={`w-2 h-2 rounded-full ${index === currentImageIndex ? 'bg-white' : 'bg-gray-500'}`}
-              ></div>
-            ))}
-          </div>
-          {/* Thumbnail Images */}
-          <div className="flex space-x-2 mt-4 overflow-x-scroll overflow-y-hidden">
-            {images.map((thumbnail, index) => {
-              const sanitizedPath = thumbnail.split("\\").pop(); // Extract the filename
-              const thumbnailURL = `http://localhost:4000/uploads/${sanitizedPath}`; // Construct the correct URL
-
-              return (
-                <img
-                  key={index}
-                  src={thumbnailURL}
-                  alt={`Thumbnail ${index + 1}`}
-                  onClick={() => setCurrentImageIndex(index)} // Change the current image index on click
-                  className={`w-16 h-16 object-cover cursor-pointer rounded-lg transition-all duration-300 ease-in-out ${currentImageIndex === index
-                    ? 'border-4 border-blue-500 transform scale-105'
-                    : 'border border-transparent'
-                    }`}
-                />
-              );
-            })}
-          </div>
-
-          {showLargeImage && modalImageIndex !== null && (
-            <div
-              className="fixed inset-0 bg-black bg-opacity-80 flex flex-col items-center justify-center z-50"
-            >
-              {/* Large Image */}
-              <div className="relative top-5">
-                <img
-                  src={`http://localhost:4000/uploads/${images[modalImageIndex].split("\\").pop()}`}
-                  alt={`Large view of ${product.name}`}
-                  className="max-w-full max-h-[75vh] object-contain z-10"
-                />
-                <button
-                  onClick={handleCancelImage}
-                  className="absolute top-2 right-2 bg-white text-black rounded-full p-2 hover:bg-gray-200 focus:outline-none"
-                >
-                  ✖
-                </button>
-              </div>
-
-              {/* Thumbnail Navigation */}
-              <div className="flex space-x-2 mt-5 overflow-x-auto">
-                {images.map((thumbnail, index) => {
-                  const sanitizedPath = `http://localhost:4000/uploads/${thumbnail.split("\\").pop()}`;
-                  return (
-                    <img
-                      key={index}
-                      src={sanitizedPath}
-                      alt={`Thumbnail ${index + 1}`}
-                      className={`w-16 h-16 object-cover border-2 cursor-pointer ${modalImageIndex === index ? 'border-blue-500' : 'border-gray-300'
-                        }`}
-                      onClick={() => setModalImageIndex(index)}
-                    />
-                  );
-                })}
+                <div className="relative">
+                  <button
+                    onClick={() => setShowShareOptions(!showShareOptions)}
+                    className="text-gray-400 hover:text-indigo-400 transition"
+                  >
+                    <FaShare />
+                  </button>
+                  <AnimatePresence>
+                    {showShareOptions && (
+                      <motion.div
+                        initial={{ opacity: 0, scale: 0.9 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.9 }}
+                        className="absolute right-0 mt-2 bg-gray-800 rounded-xl shadow-xl border border-gray-700 p-2 flex gap-2"
+                      >
+                        <button onClick={() => shareProduct('facebook')} className="p-2 hover:bg-gray-700 rounded-lg text-blue-500">
+                          <FaFacebook />
+                        </button>
+                        <button onClick={() => shareProduct('twitter')} className="p-2 hover:bg-gray-700 rounded-lg text-sky-400">
+                          <FaTwitter />
+                        </button>
+                        <button onClick={() => shareProduct('whatsapp')} className="p-2 hover:bg-gray-700 rounded-lg text-green-500">
+                          <FaWhatsapp />
+                        </button>
+                        <button onClick={() => shareProduct('email')} className="p-2 hover:bg-gray-700 rounded-lg text-gray-400">
+                          <FaEnvelope />
+                        </button>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
               </div>
             </div>
-          )}
-
+          </div>
         </div>
 
-        {/* Right Section - Product Details */}
-        <div className="w-full md:w-2/3 pl-0 md:pl-10 space-y-4 mt-16 md:mt-0 z-1">
-          <span className={`text-xs px-2 py-1 rounded ${product.inStock ? "bg-green-600" : "bg-red-600"
-            }`}
-          >
-            {product.inStock ? "IN STOCK" : "OUT OF STOCK"}
-          </span>
+        <div className="container mx-auto px-4 py-8">
+          {/* Breadcrumb */}
+          <nav className="flex items-center gap-2 text-sm text-gray-400 mb-8">
+            <button onClick={() => navigate('/')} className="hover:text-indigo-400 transition">Home</button>
+            <span>/</span>
+            <button onClick={() => navigate('/categories')} className="hover:text-indigo-400 transition">Categories</button>
+            <span>/</span>
+            <span className="text-indigo-400">{name}</span>
+          </nav>
 
-          <h1 className="text-2xl md:text-3xl font-bold">{product.name}</h1>
-          <p className="text-gray-400">Code: {code}</p>
-
-          {/* Quantity Selector */}
-          <div className="flex items-center space-x-4 mt-4">
-            <button
-              className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-l-lg text-lg font-bold transition"
-              onClick={handleDecrease}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
+            {/* Left Column - Images */}
+            <motion.div
+              initial={{ opacity: 0, x: -50 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.6 }}
+              className="space-y-4"
             >
-              -
-            </button>
-            <span className="bg-gray-800 text-white text-lg font-semibold px-6 py-2 rounded-md border border-gray-600">
-              {quantity}
-            </span>
-            <button
-              className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-r-lg text-lg font-bold transition"
-              onClick={handleIncrease}
+              {/* Main Image with Zoom */}
+              <div className="relative bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl overflow-hidden group border border-gray-700">
+                <div 
+                  ref={imageRef}
+                  className="relative aspect-square flex items-center justify-center cursor-zoom-in"
+                  onMouseEnter={() => setShowZoom(true)}
+                  onMouseLeave={() => setShowZoom(false)}
+                  onMouseMove={handleMouseMove}
+                  onClick={() => handleThumbnailClick(currentImageIndex)}
+                >
+                  {images.length > 0 ? (
+                    <>
+                      <img
+                        src={getImageUrl(images[currentImageIndex])}
+                        alt={name}
+                        className="max-h-full max-w-full object-contain transition-transform duration-500 group-hover:scale-110"
+                      />
+                      {/* Zoom Lens */}
+                      <AnimatePresence>
+                        {showZoom && (
+                          <motion.div 
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            className="absolute w-32 h-32 border-2 border-indigo-500 rounded-full pointer-events-none"
+                            style={{
+                              left: `${zoomPosition.x}%`,
+                              top: `${zoomPosition.y}%`,
+                              transform: 'translate(-50%, -50%)',
+                              background: `url(${getImageUrl(images[currentImageIndex])})`,
+                              backgroundSize: '300%',
+                              backgroundPosition: `${zoomPosition.x}% ${zoomPosition.y}%`,
+                            }}
+                          />
+                        )}
+                      </AnimatePresence>
+                    </>
+                  ) : (
+                    <div className="text-gray-500 flex flex-col items-center gap-2">
+                      <FaCamera className="text-4xl" />
+                      <span>No image available</span>
+                    </div>
+                  )}
+
+                  {/* Image Navigation Arrows */}
+                  {images.length > 1 && (
+                    <>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handlePreviousImage(); }}
+                        className="absolute left-4 top-1/2 transform -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white p-3 rounded-full transition opacity-0 group-hover:opacity-100"
+                      >
+                        <FaArrowLeft />
+                      </button>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleNextImage(); }}
+                        className="absolute right-4 top-1/2 transform -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white p-3 rounded-full transition opacity-0 group-hover:opacity-100"
+                      >
+                        <FaArrowRight />
+                      </button>
+                    </>
+                  )}
+
+                  {/* Image Counter */}
+                  {images.length > 1 && (
+                    <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-black/70 text-white px-3 py-1 rounded-full text-sm">
+                      {currentImageIndex + 1} / {images.length}
+                    </div>
+                  )}
+
+                  {/* Discount Badge */}
+                  {originalPrice > currentPrice && (
+                    <div className="absolute top-4 left-4 bg-gradient-to-r from-red-600 to-orange-600 text-white px-4 py-2 rounded-full font-bold shadow-lg">
+                      {Math.round(((originalPrice - currentPrice) / originalPrice) * 100)}% OFF
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Thumbnails */}
+              {images.length > 1 && (
+                <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-gray-700">
+                  {images.map((img, index) => (
+                    <button
+                      key={index}
+                      onClick={() => setCurrentImageIndex(index)}
+                      className={`flex-shrink-0 w-20 h-20 rounded-lg overflow-hidden border-2 transition-all ${
+                        index === currentImageIndex
+                          ? 'border-indigo-500 scale-105 shadow-lg'
+                          : 'border-transparent opacity-60 hover:opacity-100'
+                      }`}
+                    >
+                      <img
+                        src={getImageUrl(img)}
+                        alt={`Thumbnail ${index + 1}`}
+                        className="w-full h-full object-cover"
+                      />
+                    </button>
+                  ))}
+                </div>
+              )}
+            </motion.div>
+
+            {/* Right Column - Product Info */}
+            <motion.div
+              initial={{ opacity: 0, x: 50 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.6 }}
+              className="space-y-6"
             >
-              +
-            </button>
-          </div>
+              {/* Brand & Stock Status */}
+              <div className="flex items-center justify-between flex-wrap gap-4">
+                <div className="flex items-center gap-3">
+                  {brand && (
+                    <span className="bg-indigo-600/20 text-indigo-400 px-4 py-2 rounded-lg font-semibold border border-indigo-500/30">
+                      {brand}
+                    </span>
+                  )}
+                  <span className={`px-4 py-2 rounded-lg font-semibold flex items-center gap-2 ${
+                    inStock 
+                      ? 'bg-green-600/20 text-green-400 border border-green-500/30' 
+                      : 'bg-red-600/20 text-red-400 border border-red-500/30'
+                  }`}>
+                    {inStock ? <FaCheck className="text-green-400" /> : <FaTimes className="text-red-400" />}
+                    {inStock ? 'IN STOCK' : 'OUT OF STOCK'}
+                  </span>
+                </div>
+                {condition && (
+                  <span className="bg-yellow-600/20 text-yellow-400 px-4 py-2 rounded-lg border border-yellow-500/30">
+                    {condition}
+                  </span>
+                )}
+              </div>
 
-          {/* Product Rating */}
-          <div className="flex items-center cursor-pointer" onClick={() => handleStarClick(product.rating)}>
-            {stars.map((star, index) => (
-              <span key={index} className={`text-yellow-400 text-lg mr-1`}>
-                {star === 'full' ? '★' : star === 'half' ? '☆' : '☆'}
-              </span>
-            ))}
-            <span className="text-gray-400">({product.rating})</span>
-          </div>
+              {/* Product Title */}
+              <h1 className="text-4xl font-bold bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent">
+                {name}
+              </h1>
 
-          {/* Product Description */}
-          <p className="text-gray-300">
-            {isRefurbished ? (
-              <span className="bg-yellow-500 text-black px-2 py-1 rounded">Condition: {condition}</span>
-            ) : ""}
-          </p>
-          <p className="text-gray-300">{description}</p>
+              {/* SKU & Rating */}
+              <div className="flex items-center justify-between flex-wrap gap-4">
+                {code && (
+                  <div className="flex items-center gap-2 text-gray-400">
+                    <FaTag className="text-indigo-400" />
+                    <span>SKU: {code}</span>
+                  </div>
+                )}
+                <div className="flex items-center gap-3">
+                  <div className="flex gap-1 text-xl">
+                    {renderStars(rating)}
+                  </div>
+                  <span className="text-gray-400">({reviewCount} reviews)</span>
+                </div>
+              </div>
 
-          {/* Top Product Price and Buttons */}
-          <div className="">
-            <div className="flex items-center space-x-2">
-              <span className="bg-yellow-500 text-black text-sm px-2 py-1 rounded">-{discount}%</span>
-              <p className="text-3xl md:text-4xl font-bold text-blue-400">₹{getSelectedSpecsPrice()}</p>
-              <p className="text-xl text-gray-500 line-through">₹{originalPrice}</p>
-            </div>
+              {/* Price Section */}
+              <div className="bg-gradient-to-r from-gray-800 to-gray-900 p-6 rounded-2xl border border-gray-700">
+                <div className="flex items-center gap-4 flex-wrap">
+                  <div className="text-5xl font-bold bg-gradient-to-r from-indigo-400 to-purple-400 bg-clip-text text-transparent">
+                    ₹{currentPrice.toLocaleString()}
+                  </div>
+                  {originalPrice > currentPrice && (
+                    <>
+                      <div className="text-2xl text-gray-500 line-through">
+                        ₹{originalPrice.toLocaleString()}
+                      </div>
+                      <div className="bg-green-600/20 text-green-400 px-4 py-2 rounded-full font-semibold border border-green-500/30">
+                        Save ₹{(originalPrice - currentPrice).toLocaleString()}
+                      </div>
+                    </>
+                  )}
+                </div>
+                {bonuses && (
+                  <div className="mt-4 flex items-center gap-2 text-indigo-400 bg-indigo-600/10 p-3 rounded-lg">
+                    <FaGift />
+                    <span>+ {bonuses} bonuses included!</span>
+                  </div>
+                )}
+              </div>
 
-            <p className="text-sm text-blue-400">+{bonuses} bonuses for the purchase of goods!</p>
-            {paymentError && <p className="text-red-500 mt-4">{paymentError}</p>}
-            {paymentSuccess && <p className="text-green-500 mt-4">{paymentSuccess}</p>}
-
-            <div className="flex flex-col md:flex-row space-x-0 md:space-x-4">
-              <button
-                onClick={handleAddToCart}
-                className="bg-gradient-to-r from-blue-500 to-purple-600 text-white py-3 px-10 rounded-lg text-xl font-semibold mt-4"
-              >
-                ADD TO CART
-              </button>
-              {product.inStock && (
-                <button
-                  onClick={handleConfirmPayment}
-                  disabled={!stripe}
-                  className="bg-green-600 text-white py-3 px-10 rounded-lg text-xl font-semibold mt-4 md:mt-0"
-                >
-                  BUY NOW
-                </button>
+              {/* Quick Features */}
+              {features && features.length > 0 && (
+                <div className="grid grid-cols-2 gap-3">
+                  {features.slice(0, 4).map((feature, idx) => (
+                    <div key={idx} className="flex items-center gap-2 text-sm text-gray-300 bg-gray-800/50 p-3 rounded-lg">
+                      <FaCheck className="text-green-500 flex-shrink-0" />
+                      <span>{feature}</span>
+                    </div>
+                  ))}
+                </div>
               )}
-              {productType === "Pre-Built PC" && (
-                <button
-                  onClick={() => downloadQuotation(product._id, product.name)}
-                  className="bg-yellow-500 text-black py-3 px-6 rounded-lg text-lg font-semibold mt-4"
-                >
-                  Download Quotation
-                </button>
-              )}
-            </div>
-          </div>
 
-          {/* Specifications Section */}
-          <div className="relative w-full md:w-5/6 lg:w-11/12 bg-gray-800 p-6 rounded-lg mb-10 z-1">
-            <h2 className="text-xl font-semibold text-white mb-4">Specifications</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 gap-6">
-              {Object.keys(product.specs || {}).map((category) => {
-                const isTargetCategory = ["ramOptions", "storage1Options", "storage2Options"].includes(category); // Check if category is one of the target categories
-                const specOptions = product.specs[category]; // Options for this category
+              {/* Description */}
+              <p className="text-gray-300 leading-relaxed">{description}</p>
+
+              {/* Specifications Selector */}
+              {Object.entries(specs).map(([key, value]) => {
+                if (!value || !Array.isArray(value) || value.length === 0) return null;
+                if (!['ramOptions', 'storage1Options', 'storage2Options', 'colors', 'sizes'].includes(key)) return null;
 
                 return (
-                  <div key={category} className="flex items-center bg-gray-900 p-4 rounded-lg shadow-md relative">
-                    <div>
-                      <h3 className="text-sm font-semibold text-gray-200 uppercase mb-2">
-                        {category === "liquidcooler" ? (
-                          <span>Liquid&nbsp;Cooler</span>
-                        ) : category === "graphiccard" ? (
-                          <span>Graphic&nbsp;Card</span>
-                        ) : category === "ramOptions" ? (
-                          <span>RAM-Options</span>
-                        ) : category === "storage1Options" ? (
-                          <span>storage1-Options</span>
-                        ) : category === "storage2Options" ? (
-                          <span>storage2-Options</span>
-                        ) : (
-                          category // Default display of the category name
-                        )}
-                      </h3>
-
-                      {/* Dropdown for RAM, Storage1, and Storage2 */}
-                      {isTargetCategory ? (
-                        <select
-                          id={category}
-                          className="p-2 rounded-md bg-gray-700 text-white w-[340px] overflow-hidden"
-                          value={selectedSpecs[category] || ""}
-                          onChange={(e) => handleSpecChange(category, e.target.value)}
-                        >
-                          {Array.isArray(specOptions) && specOptions.length > 0 &&
-                            specOptions.map((spec, index) => (
-                              <option key={index} value={spec._id}>
-                                {spec.value} {/* Display value */}
-                              </option>
-                            ))}
-                        </select>
-                      ) : (
-                        // Display specs for categories that aren't RAM, Storage1, or Storage2
-                        Array.isArray(specOptions) && specOptions.length > 0 ? (
-                          specOptions.map((spec, index) => (
-                            <p key={index} className="text-gray-400 text-sm">
-                              {spec.value}
-                            </p>
-                          ))
-                        ) : (
-                          <p className="text-gray-400 text-sm">
-                            {typeof specOptions === "string" ? specOptions : "No details available"}
-                          </p>
-                        )
-                      )}
+                  <div key={key} className="space-y-3">
+                    <label className="block text-sm font-medium text-gray-400 uppercase tracking-wider">
+                      {key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}
+                    </label>
+                    <div className="flex flex-wrap gap-3">
+                      {value.map((option, idx) => {
+                        const isSelected = selectedSpecs[key] === (option._id || option.value);
+                        return (
+                          <button
+                            key={idx}
+                            onClick={() => handleSpecChange(key, option._id || option.value)}
+                            className={`px-4 py-2 rounded-lg border-2 transition transform hover:scale-105 ${
+                              isSelected
+                                ? 'border-indigo-500 bg-indigo-600/20 text-indigo-400'
+                                : 'border-gray-700 hover:border-gray-600 text-gray-400'
+                            }`}
+                          >
+                            {option.value || option}
+                            {option.price > 0 && ` (+₹${option.price})`}
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
                 );
               })}
-            </div>
-          </div>
 
-          {/* Other Technical Details */}
-          <div className="bg-gray-800 p-6 rounded-lg w-full mb-10">
-            <h2 className="text-xl font-semibold mb-4 text-white">Other Technical Details</h2>
-            <table className="table-auto w-full text-left text-gray-300">
-              <thead>
-                <tr>
-                  <th className="border-b border-gray-700 px-4 py-2">Feature</th>
-                  <th className="border-b border-gray-700 px-4 py-2">Value</th>
-                </tr>
-              </thead>
-              <tbody>
-                {Array.isArray(otherDetails) && otherDetails.length > 0 ? (
-                  otherDetails.map((detail, index) => (
-                    <tr key={index}>
-                      <td className="border-b border-gray-700 px-4 py-2">{detail.name}</td>
-                      <td className="border-b border-gray-700 px-4 py-2">{detail.value}</td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan="2" className="border-b border-gray-700 px-4 py-2 text-gray-400">No details available</td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-
-      <div className="bg-gray-900 p-10 border-t border-gray-300">
-        {/* Notes Section */}
-        <div className="bg-yellow-100 border-l-4 border-yellow-500 p-6 rounded-lg shadow-lg mb-10">
-          <h2 className="text-xl font-semibold mb-2 text-yellow-700">*Note*</h2>
-          <ul className="ist-disc list-inside text-yellow-900">
-            {product.notes?.length > 0 ? (
-              product.notes
-                .map(note => note.trim()) // Trim leading/trailing spaces for each note
-                .join(' ') // Join array into a single string
-                .split('"') // Split by period
-                .filter((note) => note.trim()) // Remove empty strings
-                .map((note, index) => (
-                  <li key={index} className="mb-2">
-                    {note.replace(/[\[\],\\]/g, '').trim()} {/* Add the period back */}
-                  </li>
-                ))
-            ) : (
-              <li>No notes available</li>
-            )}
-          </ul>
-        </div>
-
-        {/* Reviews Section */}
-        <div ref={reviewsSectionRef} className="bg-gray-800 p-6 rounded-lg mb-10">
-          <h2 className="text-xl font-semibold mb-2 text-white">Reviews</h2>
-
-          {/* Image Upload */}
-          <input
-            type="file"
-            accept="image/*"
-            onChange={handleImageChange}
-            className="mb-2"
-          /><br />
-          {newImage && <img src={newImage} alt="Review" className="w-16 h-16 rounded-full mb-2" />}
-
-          {/* Star Rating */}
-          <div className="flex items-center mb-2">
-            {[1, 2, 3, 4, 5].map((star) => (
-              <span
-                key={star}
-                onClick={() => setReviewRating(star)}
-                className={`cursor-pointer text-xl ${reviewRating >= star ? 'text-yellow-500' : 'text-gray-400'
-                  }`}
-              >
-                ★
-              </span>
-            ))}
-          </div>
-
-          {/* Review Text and Rating */}
-          <input
-            type="text"
-            value={newReview}
-            onChange={(e) => setNewReview(e.target.value)}
-            placeholder="Write a review..."
-            className="p-2 border border-gray-500 rounded-lg w-full mb-2 text-black"
-          />
-
-          <button onClick={handleAddReview} className="bg-blue-500 text-white p-2 rounded-lg">
-            Submit Review
-          </button>
-
-          {/* Display Existing Reviews */}
-          <div className="space-y-2 mb-4">
-            {reviews.map((review, index) => (
-              <div key={index} className="bg-gray-800 p-4 rounded-lg">
-                <div className="flex items-center mb-2">
-                  {/* Assuming the review object contains a username */}
-                  <p className="text-white font-semibold">{review.username || `User ${index + 1}`}</p>
-                </div>
-                {/* Display product name */}
-                <p className="text-white font-medium">{name}</p>
-
-                {/* Review Text */}
-                <p className="text-gray-300">{review.text}</p>
-
-                <div className="flex items-center">
-                  {/* Displaying rating with mid-size stars */}
-                  <p className="text-gray-500 mr-2">Rating:</p>
-                  {[...Array(5)].map((_, i) => (
-                    <span
-                      key={i}
-                      className={`text-yellow-500 text-lg ${i < review.rating ? 'text-yellow-500' : 'text-gray-400'}`}
+              {/* Quantity Selector */}
+              <div className="space-y-3">
+                <label className="block text-sm font-medium text-gray-400 uppercase tracking-wider">
+                  Quantity
+                </label>
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center bg-gray-800 rounded-lg border border-gray-700">
+                    <button
+                      onClick={handleDecrease}
+                      className="px-4 py-3 hover:bg-gray-700 rounded-l-lg transition disabled:opacity-50"
+                      disabled={quantity <= 1}
                     >
-                      ★
-                    </span>
-                  ))}
+                      <FaMinus />
+                    </button>
+                    <span className="w-16 text-center font-semibold">{quantity}</span>
+                    <button
+                      onClick={handleIncrease}
+                      className="px-4 py-3 hover:bg-gray-700 rounded-r-lg transition"
+                    >
+                      <FaPlus />
+                    </button>
+                  </div>
+                  <span className="text-gray-400">
+                    {inStock ? `${product.stock || 'Many'} available` : 'Out of stock'}
+                  </span>
                 </div>
               </div>
-            ))}
+
+              {/* Action Buttons */}
+              <div className="flex flex-col sm:flex-row gap-4 pt-4">
+                <button
+                  onClick={handleAddToCart}
+                  className="flex-1 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white py-4 px-6 rounded-xl font-semibold transition transform hover:scale-105 shadow-lg flex items-center justify-center gap-2"
+                >
+                  <FaShoppingCart />
+                  ADD TO CART
+                </button>
+                {inStock && (
+                  <button
+                    onClick={handleConfirmPayment}
+                    disabled={!stripe}
+                    className="flex-1 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white py-4 px-6 rounded-xl font-semibold transition transform hover:scale-105 shadow-lg flex items-center justify-center gap-2 disabled:opacity-50"
+                  >
+                    <FaBolt />
+                    BUY NOW
+                  </button>
+                )}
+              </div>
+
+              {/* Additional Actions */}
+              <div className="flex items-center justify-center gap-4 pt-2">
+                {getProductType() === 'prebuilt' && (
+                  <button
+                    onClick={downloadQuotation}
+                    className="text-gray-400 hover:text-indigo-400 transition flex items-center gap-2"
+                  >
+                    <FaDownload />
+                    Download Quotation
+                  </button>
+                )}
+                <button
+                  onClick={() => window.print()}
+                  className="text-gray-400 hover:text-indigo-400 transition flex items-center gap-2"
+                >
+                  <FaPrint />
+                  Print Details
+                </button>
+              </div>
+
+              {/* Service Guarantees */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-6 border-t border-gray-800">
+                <div className="text-center group">
+                  <FaTruck className="text-2xl text-indigo-400 mx-auto mb-2 group-hover:scale-110 transition" />
+                  <p className="text-xs text-gray-400">Free Shipping</p>
+                </div>
+                <div className="text-center group">
+                  <FaShieldAlt className="text-2xl text-indigo-400 mx-auto mb-2 group-hover:scale-110 transition" />
+                  <p className="text-xs text-gray-400">{warranty || '2 Year'} Warranty</p>
+                </div>
+                <div className="text-center group">
+                  <FaUndo className="text-2xl text-indigo-400 mx-auto mb-2 group-hover:scale-110 transition" />
+                  <p className="text-xs text-gray-400">30 Day Returns</p>
+                </div>
+                <div className="text-center group">
+                  <FaHeadphones className="text-2xl text-indigo-400 mx-auto mb-2 group-hover:scale-110 transition" />
+                  <p className="text-xs text-gray-400">24/7 Support</p>
+                </div>
+              </div>
+            </motion.div>
           </div>
+
+          {/* Tabs Section */}
+          <motion.div
+            initial={{ opacity: 0, y: 50 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}
+            viewport={{ once: true }}
+            className="mt-16"
+          >
+            <div className="border-b border-gray-800">
+              <div className="flex gap-8 overflow-x-auto pb-2">
+                {['description', 'specifications', 'reviews', 'warranty'].map((tab) => (
+                  <button
+                    key={tab}
+                    onClick={() => setActiveTab(tab)}
+                    className={`pb-4 px-2 font-medium capitalize transition relative ${
+                      activeTab === tab
+                        ? 'text-indigo-400'
+                        : 'text-gray-400 hover:text-gray-300'
+                    }`}
+                  >
+                    {tab}
+                    {activeTab === tab && (
+                      <motion.div
+                        layoutId="activeTab"
+                        className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-500 rounded-full"
+                      />
+                    )}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="py-8">
+              <AnimatePresence mode="wait">
+                {activeTab === 'description' && (
+                  <motion.div
+                    key="description"
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -20 }}
+                    transition={{ duration: 0.3 }}
+                    className="prose prose-invert max-w-none"
+                  >
+                    <p className="text-gray-300 text-lg leading-relaxed">{description}</p>
+                    
+                    {otherTechnicalDetails.length > 0 && (
+                      <div className="mt-8">
+                        <h3 className="text-xl font-semibold mb-4">Key Features</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {otherTechnicalDetails.map((detail, idx) => (
+                            <div key={idx} className="bg-gray-800/50 p-4 rounded-lg">
+                              <span className="text-indigo-400 font-medium">{detail.name}:</span>
+                              <span className="text-gray-300 ml-2">{detail.value}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {product.notes?.length > 0 && (
+                      <div className="mt-8 bg-yellow-600/10 border border-yellow-600/30 rounded-xl p-6">
+                        <h3 className="text-xl font-semibold text-yellow-600 mb-4">Important Notes</h3>
+                        <ul className="space-y-2">
+                          {product.notes.map((note, idx) => (
+                            <li key={idx} className="flex items-start gap-2 text-yellow-200">
+                              <FaCheck className="text-yellow-600 mt-1 flex-shrink-0" />
+                              <span>{note}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </motion.div>
+                )}
+
+                {activeTab === 'specifications' && (
+                  <motion.div
+                    key="specifications"
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -20 }}
+                    transition={{ duration: 0.3 }}
+                    className="grid grid-cols-1 md:grid-cols-2 gap-6"
+                  >
+                    {Object.entries(specs).map(([key, value]) => {
+                      if (!value || key === '_id' || key === '__v' || key.includes('Options')) return null;
+
+                      const getIcon = (key) => {
+                        const iconMap = {
+                          processor: <FaMicrochip />,
+                          cpu: <FaMicrochip />,
+                          ram: <FaMemory />,
+                          memory: <FaMemory />,
+                          storage: <FaHdd />,
+                          hdd: <FaHdd />,
+                          ssd: <FaHdd />,
+                          power: <FaPower />,
+                          psu: <FaPower />,
+                          wifi: <FaWifi />,
+                          bluetooth: <FaBluetoothB />,
+                          color: <FaPalette />,
+                          colour: <FaPalette />,
+                          weight: <FaWeightHanging />,
+                          dimensions: <FaRulerCombined />
+                        };
+                        return iconMap[key.toLowerCase()] || <FaBoxOpen />;
+                      };
+
+                      return (
+                        <div key={key} className="bg-gray-800/50 p-5 rounded-xl border border-gray-700">
+                          <div className="flex items-center gap-3 mb-3">
+                            <span className="text-indigo-400 text-xl">{getIcon(key)}</span>
+                            <h4 className="font-medium text-gray-400 uppercase tracking-wider">
+                              {key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}
+                            </h4>
+                          </div>
+                          <div className="text-gray-300">
+                            {typeof value === 'object' ? (
+                              <div className="space-y-2">
+                                {Object.entries(value).map(([k, v]) => (
+                                  <div key={k} className="flex justify-between">
+                                    <span className="text-gray-500">{k}:</span>
+                                    <span>{String(v)}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              <p className="text-lg">{String(value)}</p>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </motion.div>
+                )}
+
+                {activeTab === 'reviews' && (
+                  <motion.div
+                    key="reviews"
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -20 }}
+                    transition={{ duration: 0.3 }}
+                    ref={reviewsSectionRef}
+                  >
+                    {/* Review Form */}
+                    <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl p-6 mb-8 border border-gray-700">
+                      <h3 className="text-xl font-semibold mb-6 flex items-center gap-2">
+                        <FaStar className="text-yellow-500" />
+                        Write a Review
+                      </h3>
+                      
+                      {/* Star Rating */}
+                      <div className="flex items-center gap-2 mb-6">
+                        <span className="text-gray-400">Your Rating:</span>
+                        <div className="flex gap-1">
+                          {[1, 2, 3, 4, 5].map((star) => (
+                            <button
+                              key={star}
+                              onClick={() => setReviewRating(star)}
+                              className={`text-3xl transition transform hover:scale-110 ${
+                                reviewRating >= star ? 'text-yellow-500' : 'text-gray-600 hover:text-yellow-500'
+                              }`}
+                            >
+                              ★
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Review Input */}
+                      <textarea
+                        value={newReview}
+                        onChange={(e) => setNewReview(e.target.value)}
+                        placeholder="Share your experience with this product..."
+                        className="w-full p-4 bg-gray-900 border border-gray-700 rounded-xl focus:outline-none focus:border-indigo-500 mb-4 resize-none"
+                        rows="4"
+                      />
+
+                      {/* Image Upload */}
+                      <div className="mb-6">
+                        <label className="block text-gray-400 mb-2">Add Image (Optional)</label>
+                        <div className="flex items-center gap-4">
+                          <label className="cursor-pointer bg-gray-900 hover:bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 transition">
+                            <input
+                              type="file"
+                              accept="image/*"
+                              onChange={(e) => {
+                                const file = e.target.files[0];
+                                if (file) {
+                                  setImageFile(file);
+                                  setNewImage(URL.createObjectURL(file));
+                                }
+                              }}
+                              className="hidden"
+                            />
+                            Choose File
+                          </label>
+                          {newImage && (
+                            <div className="relative">
+                              <img src={newImage} alt="Preview" className="w-16 h-16 object-cover rounded-lg" />
+                              <button
+                                onClick={() => {
+                                  setNewImage(null);
+                                  setImageFile(null);
+                                }}
+                                className="absolute -top-2 -right-2 bg-red-600 text-white rounded-full p-1 text-xs"
+                              >
+                                <FaTimes />
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      <button
+                        onClick={async () => {
+                          if (!newReview.trim() || reviewRating === 0) return;
+                          
+                          const formData = new FormData();
+                          formData.append('rating', reviewRating);
+                          formData.append('comment', newReview);
+                          if (imageFile) formData.append('image', imageFile);
+
+                          try {
+                            const response = await fetch(`${BASE_URL}/api/products/${product._id}/reviews`, {
+                              method: 'POST',
+                              headers: {
+                                Authorization: `Bearer ${localStorage.getItem('token')}`,
+                              },
+                              body: formData,
+                            });
+
+                            if (response.ok) {
+                              const data = await response.json();
+                              setReviews([data.review, ...reviews]);
+                              setNewReview('');
+                              setNewImage(null);
+                              setImageFile(null);
+                              setReviewRating(0);
+                            }
+                          } catch (error) {
+                            console.error('Error submitting review:', error);
+                          }
+                        }}
+                        disabled={!newReview.trim() || reviewRating === 0}
+                        className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white px-8 py-3 rounded-xl font-semibold transition transform hover:scale-105 disabled:opacity-50"
+                      >
+                        Submit Review
+                      </button>
+                    </div>
+
+                    {/* Existing Reviews */}
+                    {reviews.length > 0 ? (
+                      <div className="space-y-4">
+                        {reviews.map((review, idx) => (
+                          <motion.div
+                            key={idx}
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: idx * 0.1 }}
+                            className="bg-gray-800/50 rounded-xl p-6 border border-gray-700"
+                          >
+                            <div className="flex items-center justify-between mb-4">
+                              <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-full flex items-center justify-center">
+                                  <span className="font-bold">
+                                    {(review.username || review.user?.name || 'A').charAt(0).toUpperCase()}
+                                  </span>
+                                </div>
+                                <div>
+                                  <span className="font-semibold">{review.username || review.user?.name || 'Anonymous'}</span>
+                                  <div className="flex gap-1 mt-1">
+                                    {[...Array(5)].map((_, i) => (
+                                      <span
+                                        key={i}
+                                        className={`text-sm ${
+                                          i < review.rating ? 'text-yellow-500' : 'text-gray-600'
+                                        }`}
+                                      >
+                                        ★
+                                      </span>
+                                    ))}
+                                  </div>
+                                </div>
+                              </div>
+                              <span className="text-sm text-gray-500">
+                                <FaCalendarAlt className="inline mr-1" />
+                                {new Date(review.createdAt).toLocaleDateString()}
+                              </span>
+                            </div>
+                            <p className="text-gray-300 mb-4">{review.text || review.comment}</p>
+                            {review.image && (
+                              <img
+                                src={getImageUrl(review.image)}
+                                alt="Review"
+                                className="w-24 h-24 object-cover rounded-lg border border-gray-700"
+                              />
+                            )}
+                          </motion.div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-center py-12 bg-gray-800/30 rounded-xl">
+                        <FaStar className="text-5xl text-gray-600 mx-auto mb-4" />
+                        <p className="text-gray-400 text-lg">No reviews yet. Be the first to review this product!</p>
+                      </div>
+                    )}
+                  </motion.div>
+                )}
+
+                {activeTab === 'warranty' && (
+                  <motion.div
+                    key="warranty"
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -20 }}
+                    transition={{ duration: 0.3 }}
+                    className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl p-8 border border-gray-700"
+                  >
+                    <div className="flex items-center gap-4 mb-6">
+                      <FaShieldAlt className="text-5xl text-indigo-500" />
+                      <div>
+                        <h3 className="text-2xl font-bold">Warranty Information</h3>
+                        <p className="text-gray-400">{warranty || 'Standard manufacturer warranty applies'}</p>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="bg-gray-900/50 p-4 rounded-lg">
+                        <h4 className="font-semibold text-indigo-400 mb-2">Coverage</h4>
+                        <p className="text-gray-300">Manufacturing defects and hardware failures</p>
+                      </div>
+                      <div className="bg-gray-900/50 p-4 rounded-lg">
+                        <h4 className="font-semibold text-indigo-400 mb-2">Duration</h4>
+                        <p className="text-gray-300">{warranty || '1 year'} from date of purchase</p>
+                      </div>
+                      <div className="bg-gray-900/50 p-4 rounded-lg">
+                        <h4 className="font-semibold text-indigo-400 mb-2">Service Type</h4>
+                        <p className="text-gray-300">Carry-in or On-site (depending on location)</p>
+                      </div>
+                      <div className="bg-gray-900/50 p-4 rounded-lg">
+                        <h4 className="font-semibold text-indigo-400 mb-2">Customer Support</h4>
+                        <p className="text-gray-300">24/7 toll-free helpline: 1800-123-4567</p>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          </motion.div>
+
+          {/* Related Products */}
+          {relatedProducts.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: 50 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6 }}
+              viewport={{ once: true }}
+              className="mt-16"
+            >
+              <h3 className="text-2xl font-bold mb-8 bg-gradient-to-r from-indigo-400 to-purple-400 bg-clip-text text-transparent">
+                You Might Also Like
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                {relatedProducts.map((item) => (
+                  <motion.div
+                    key={item._id}
+                    whileHover={{ y: -5 }}
+                    className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-xl overflow-hidden border border-gray-700 hover:border-indigo-500/50 transition-all cursor-pointer"
+                    onClick={() => navigate(`/product/${item._id}`)}
+                  >
+                    <div className="h-48 overflow-hidden">
+                      <img
+                        src={getImageUrl(item.image?.[0])}
+                        alt={item.name}
+                        className="w-full h-full object-cover transform hover:scale-110 transition-transform duration-500"
+                      />
+                    </div>
+                    <div className="p-4">
+                      <h4 className="font-semibold text-white mb-2 line-clamp-1">{item.name}</h4>
+                      <p className="text-indigo-400 font-bold">₹{(item.price || 0).toLocaleString()}</p>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+            </motion.div>
+          )}
         </div>
       </div>
+
+      {/* Image Modal */}
+      <AnimatePresence>
+        {showLargeImage && modalImageIndex !== null && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/95 flex items-center justify-center z-50"
+            onClick={handleCancelImage}
+          >
+            <motion.div
+              initial={{ scale: 0.9 }}
+              animate={{ scale: 1 }}
+              exit={{ scale: 0.9 }}
+              className="relative max-w-6xl mx-auto p-4"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <img
+                src={getImageUrl(images[modalImageIndex])}
+                alt={name}
+                className="max-h-[90vh] max-w-full object-contain rounded-lg"
+              />
+              
+              {/* Close Button */}
+              <button
+                onClick={handleCancelImage}
+                className="absolute top-4 right-4 bg-white/10 hover:bg-white/20 text-white p-3 rounded-full transition"
+              >
+                <FaTimes />
+              </button>
+              
+              {/* Modal Navigation */}
+              {images.length > 1 && (
+                <>
+                  <button
+                    onClick={() => setModalImageIndex(prev => (prev === 0 ? images.length - 1 : prev - 1))}
+                    className="absolute left-4 top-1/2 transform -translate-y-1/2 bg-white/10 hover:bg-white/20 text-white p-4 rounded-full transition"
+                  >
+                    <FaArrowLeft />
+                  </button>
+                  <button
+                    onClick={() => setModalImageIndex(prev => (prev === images.length - 1 ? 0 : prev + 1))}
+                    className="absolute right-4 top-1/2 transform -translate-y-1/2 bg-white/10 hover:bg-white/20 text-white p-4 rounded-full transition"
+                  >
+                    <FaArrowRight />
+                  </button>
+                </>
+              )}
+
+              {/* Image Counter */}
+              <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-black/70 text-white px-4 py-2 rounded-full">
+                {modalImageIndex + 1} / {images.length}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </>
   );
 };
 
-export default ProductDetails;
+export default ProductDetails; 

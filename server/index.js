@@ -22,6 +22,18 @@ import AdminRoutes from './routes/AdminRoutes.js';
 import SubscribeRoutes from './routes/SubscribeRoutes.js';
 import MessageRoutes from './routes/MessageRoutes.js';
 import DiscountRoutes from './routes/discountRoutes.js';
+import accessoryRoutes from './routes/accessoryRoutes.js';
+import displayRoutes from './routes/displayRoutes.js';
+import audioRoutes from './routes/audioRoutes.js';
+import cameraRoutes from './routes/cameraRoutes.js';
+import mobileRoutes from './routes/mobileRoutes.js';
+import pcComponentRoutes from './routes/pcComponentRoutes.js';
+import tvEntertainmentRoutes from './routes/tvEntertainmentRoutes.js';
+import wearableRoutes from './routes/wearableRoutes.js';
+import kitchenRoutes from './routes/kitchenRoutes.js';
+import laundryRoutes from './routes/laundryRoutes.js';
+import noteRoutes from './routes/noteRoutes.js';
+import categoryRoutes from './routes/categoryRoutes.js';
 import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
 import { Strategy as FacebookStrategy } from 'passport-facebook';
 // @ts-ignore
@@ -33,16 +45,16 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
-    // origin: "*",
-    origin: "process.env.REACT_APP", // Your frontend's origin
+    origin: true,
+    // origin: "http://localhost:5173", // Your frontend's origin
     methods: ["GET", "POST", 'PUT', 'DELETE'],
     credentials: true,
   },
 });
 
 app.use(cors({
-  // origin: "*",
-  origin: 'process.env.REACT_APP',
+  origin: true,
+  // origin: 'http://localhost:5173',
   methods: ["GET", "POST", 'PUT', 'DELETE'],
   credentials: true,
 }));
@@ -50,7 +62,7 @@ app.use(cors({
 // Also add this middleware
 app.use((req, res, next) => {
   res.setHeader("Cross-Origin-Opener-Policy", "same-origin-allow-popups");
-  res.setHeader("Cross-Origin-Embedder-Policy", "require-corp");
+  // res.setHeader("Cross-Origin-Embedder-Policy", "require-corp");
   next();
 });
 
@@ -245,7 +257,18 @@ app.use('/api', AdminRoutes);
 app.use('/api', SubscribeRoutes);
 app.use('/api', MessageRoutes);
 app.use('/api', DiscountRoutes);
-
+app.use('/api/accessories', accessoryRoutes);
+app.use('/api/displays', displayRoutes);
+app.use('/api/audio', audioRoutes);
+app.use('/api/cameras', cameraRoutes);
+app.use('/api/mobiles', mobileRoutes);
+app.use('/api/components', pcComponentRoutes);
+app.use('/api/tv', tvEntertainmentRoutes);
+app.use('/api/wearables', wearableRoutes);
+app.use('/api/kitchen', kitchenRoutes);
+app.use('/api/laundry', laundryRoutes);
+app.use('/api', noteRoutes);
+app.use('/', categoryRoutes);
 mongoose.connect(process.env.MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })
   .then(() => console.log('Connected to MongoDB'))
   .catch(error => {
