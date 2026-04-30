@@ -52,7 +52,7 @@ const Footer = () => {
           {/* Brand Section */}
           <div className="lg:col-span-2">
             <h2 className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent mb-4">
-              Plixifog
+              Flexifog
             </h2>
             <p className="text-gray-300 mb-6 max-w-md">
               Your one-stop destination for the latest electronics and gadgets. 
@@ -71,7 +71,7 @@ const Footer = () => {
               </div>
               <div className="flex items-center space-x-3 text-gray-300">
                 <i className="fas fa-envelope w-5 text-blue-400"></i>
-                <span>support@plixifog.com</span>
+                <span>support@flexifog.com</span>
               </div>
             </div>
           </div>
@@ -212,7 +212,7 @@ const Footer = () => {
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
             {/* Copyright */}
             <p className="text-gray-400 text-sm text-center md:text-left">
-              &copy; {currentYear} Plixifog. All rights reserved. 
+              &copy; {currentYear} Flexifog. All rights reserved. 
               <span className="block md:inline md:ml-2 text-gray-500">
                 Built with <i className="fas fa-heart text-red-500 mx-1"></i> for tech enthusiasts
               </span>

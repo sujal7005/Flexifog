@@ -379,7 +379,7 @@ const electronicCategories = {
 
         {/* Logo */}
         <Link to="/" className="text-lg md:text-xl font-bold tracking-wider text-indigo-400">
-          Plixifog
+          Flexifog
         </Link>
 
         {/* Search Bar */}

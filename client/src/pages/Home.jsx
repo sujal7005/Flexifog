@@ -54,7 +54,7 @@ const Home = () => {
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [dynamicText, setDynamicText] = useState("Welcome to Plixifog - Your Ultimate Tech Destination");
+  const [dynamicText, setDynamicText] = useState("Welcome to Flexifog - Your Ultimate Tech Destination");
   const [backgroundImage, setBackgroundImage] = useState("https://t3.ftcdn.net/jpg/09/18/42/58/360_F_918425842_Ww2uHj43kH4KP1Agmo6H1nkUciN2kOGo.jpg");
   const [stats, setStats] = useState({
     products: 0,
@@ -425,8 +425,7 @@ const Home = () => {
               >
                 <span className="text-indigo-400 font-semibold text-sm uppercase tracking-wider">Why Choose Us</span>
                 <h2 className="text-4xl font-bold mt-4 mb-6 bg-gradient-to-r from-indigo-400 to-purple-400 bg-clip-text text-transparent">
-                  Plixifog: Your Trusted Electronics Partner
-                </h2>
+                  Flexifog: Your Trusted Electronics Partner
                 
                 <div className="space-y-4 mb-8">
                   {[
@@ -771,7 +770,7 @@ const Home = () => {
           >
             <span className="text-indigo-400 font-semibold text-sm uppercase tracking-wider">Why Choose Us</span>
             <h2 className="text-4xl font-bold mt-4 bg-gradient-to-r from-indigo-400 to-purple-400 bg-clip-text text-transparent">
-              The Plixifog Advantage
+              The Flexifog Advantage
             </h2>
           </motion.div>
 

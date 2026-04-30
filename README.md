@@ -3,7 +3,7 @@
 ![MERN Stack](https://img.shields.io/badge/MERN-Stack-blue)
 ![License](https://img.shields.io/badge/License-MIT-green)
 
-Plixifog is a modern, full-stack ecommerce platform built using the MERN stack (MongoDB, Express.js, React, Node.js). It provides a seamless shopping experience with features like user authentication, product browsing, shopping cart, payment processing, and an admin panel for managing the store.
+Flexifog is a modern, full-stack ecommerce platform built using the MERN stack (MongoDB, Express.js, React, Node.js). It provides a seamless shopping experience with features like user authentication, product browsing, shopping cart, payment processing, and an admin panel for managing the store.
 
 ## Features
 
@@ -51,8 +51,8 @@ Plixifog is a modern, full-stack ecommerce platform built using the MERN stack (
 
 1. **Clone the repository**:
    ```bash
-   git clone https://github.com/sujal7005/plixifog.git
-   cd plixifog
+   git clone https://github.com/sujal7005/Flexifog.git
+   cd Flexifog
    ```
 
 2. **Install server dependencies**:
@@ -113,7 +113,7 @@ Refer to the `server/routes` directory for detailed route definitions.
 ## Project Structure
 
 ```
-plixifog/
+Flexifog/
 ├── client/                 # React frontend
 │   ├── src/
 │   │   ├── components/     # Reusable UI components
