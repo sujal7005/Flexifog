@@ -1,4 +1,4 @@
-# Plixifog - Ecommerce Website
+# Flexifog - Ecommerce Website
 
 ![MERN Stack](https://img.shields.io/badge/MERN-Stack-blue)
 ![License](https://img.shields.io/badge/License-MIT-green)
